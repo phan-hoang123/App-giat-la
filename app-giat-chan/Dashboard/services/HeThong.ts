@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SERVER_IP = "https://backend-giat-chan.onrender.com";
+const SERVER_IP = "http://20.48.3.215:5001";
 
 export class HeThongService {
   // 1. Cập nhật Bảng giá mới lên Đám mây

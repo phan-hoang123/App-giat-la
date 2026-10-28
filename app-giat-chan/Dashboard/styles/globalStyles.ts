@@ -7,6 +7,19 @@ export const styles = StyleSheet.create({
   // ==========================================
   // 1. CÁC STYLE DÙNG CHUNG (GLOBAL/COMMON)
   // ==========================================
+
+  // --- Tab Trạng Thái (Status Tab) ---
+  statusTab: { paddingVertical: 10, borderRadius: 8, backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "transparent" },
+  statusTabText: { fontSize: 14, color: "#6B7280", fontWeight: "600" },
+
+  // --- Khối Component Đếm Số Lượng (ItemCounter) ---
+  itemCounterContainer: { width: '48%', padding: 10, borderRadius: 12, marginBottom: 12, borderWidth: 1 },
+  itemCounterLabel: { fontSize: 13, fontWeight: "bold", marginBottom: 8, minHeight: 36 },
+  itemCounterControl: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#FFF", borderRadius: 8, borderWidth: 1 },
+  itemCounterBtn: { paddingHorizontal: 12, paddingVertical: 6 },
+  itemCounterMinusText: { fontSize: 16, fontWeight: 'bold' },
+  itemCounterPlusText: { fontSize: 16, color: "#2563EB", fontWeight: 'bold' },
+  itemCounterValueText: { fontSize: 15, fontWeight: "900" },
   
   // --- Khung bố cục cơ bản ---
   container: { flex: 1, backgroundColor: "#F4F6F9" },

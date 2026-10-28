@@ -1,4 +1,4 @@
-const SERVER_IP = "https://backend-giat-chan.onrender.com";
+const SERVER_IP = "http://20.48.3.215:5001";
 
 export class DonHangService {
   // 1. Lấy bảng giá

@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from "../styles/globalStyles";
 
-const SERVER_IP = "https://backend-giat-chan.onrender.com";
+const SERVER_IP = "http://20.48.3.215:5001";
 
 export default function DangNhap({ onAuthSuccess }: { onAuthSuccess: () => void }) {
   const [phone, setPhone] = useState("");
@@ -48,6 +48,7 @@ export default function DangNhap({ onAuthSuccess }: { onAuthSuccess: () => void 
 
       if (res.ok) {
         await AsyncStorage.setItem("user_name", data.name || "Sếp");
+        await AsyncStorage.setItem("user_role", data.role || "STAFF");
         if (data.token) await AsyncStorage.setItem("user_token", data.token);
 
         if (rememberMe) {
