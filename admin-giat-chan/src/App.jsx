@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import logoImg from './assets/favicon.png'
+import logoImg from "./assets/favicon.png";
 
 // ==========================================
 // 1. CẤU HÌNH KẾT NỐI & TRẠNG THÁI KHO MỚI
@@ -30,7 +30,8 @@ const STATUS_CONFIG = {
   },
 };
 
-const generateCode = (prefix) => prefix + new Date().getTime().toString().slice(-4);
+const generateCode = (prefix) =>
+  prefix + new Date().getTime().toString().slice(-4);
 
 const parseItems = (rawItems) => {
   let isAgent = false;
@@ -60,6 +61,7 @@ export default function AdminDashboard() {
   const [transactions, setTransactions] = useState([]);
   const [priceList, setPriceList] = useState([]);
   const [staffList, setStaffList] = useState([]);
+  const [inventory, setInventory] = useState([]);
 
   // Tài khoản đang đăng nhập trên Web (Đồng bộ trực tiếp với bảng users trong MySQL)
   const [selectedUserPhone, setSelectedUserPhone] = useState(() => {
@@ -82,16 +84,26 @@ export default function AdminDashboard() {
   });
 
   const [newOrder, setNewOrder] = useState({
-    name: "", phone: "", address: "", customerType: "LE", serviceName: "", qty: 1, total: 0, note: "",
+    name: "",
+    phone: "",
+    address: "",
+    customerType: "LE",
+    serviceName: "",
+    qty: 1,
+    total: 0,
+    note: "",
   });
   const [newExpense, setNewExpense] = useState({ amount: "", desc: "" });
   const [newStaff, setNewStaff] = useState({
-    name: "", phone: "", password: "", role: "STAFF", position: "Nhân viên tiếp nhận",
+    name: "",
+    phone: "",
+    password: "",
+    role: "STAFF",
+    position: "Nhân viên tiếp nhận",
   });
 
   // Tìm thông tin người dùng hiện tại từ danh sách MySQL trả về
-  const currentUser =
-    staffList.find((u) => u.phone === selectedUserPhone) ||
+  const currentUser = staffList.find((u) => u.phone === selectedUserPhone) ||
     staffList[0] || {
       name: "Sếp Quản Lý",
       phone: "0333041030",
@@ -116,7 +128,8 @@ export default function AdminDashboard() {
     const [y, m, d] = dateStr.split("-");
     return `${d}/${m}/${y}`;
   };
-  const formatMoney = (amount) => new Intl.NumberFormat("vi-VN").format(amount || 0) + "đ";
+  const formatMoney = (amount) =>
+    new Intl.NumberFormat("vi-VN").format(amount || 0) + "đ";
 
   // ==========================================
   // 3. KẾT NỐI MÁY CHỦ (API FETCH)
@@ -177,6 +190,13 @@ export default function AdminDashboard() {
         }
       })
       .catch(() => {});
+
+    fetch(`${API_BASE}/api/inventory`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setInventory(data);
+      })
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -189,7 +209,9 @@ export default function AdminDashboard() {
   const handleProductOrQtyChange = (field, value) => {
     const updated = { ...newOrder, [field]: value };
     if (field === "serviceName" || field === "qty") {
-      const selectedItem = priceList.find((p) => p.name === updated.serviceName);
+      const selectedItem = priceList.find(
+        (p) => p.name === updated.serviceName,
+      );
       const price = selectedItem ? parseInt(selectedItem.price) : 0;
       const quantity = parseInt(updated.qty) || 1;
       updated.total = price * quantity;
@@ -200,9 +222,11 @@ export default function AdminDashboard() {
   const handleCreateOrder = (e) => {
     e.preventDefault();
     if (!newOrder.name) return showToast("⚠️ Vui lòng nhập Tên khách hàng!");
-    if (!newOrder.serviceName || newOrder.qty <= 0) return showToast("⚠️ Chọn dịch vụ và nhập số lượng!");
+    if (!newOrder.serviceName || newOrder.qty <= 0)
+      return showToast("⚠️ Chọn dịch vụ và nhập số lượng!");
 
-    const typePrefix = newOrder.customerType === "AGENT" ? "[ĐIỂM THU] " : "[KHÁCH LẺ] ";
+    const typePrefix =
+      newOrder.customerType === "AGENT" ? "[ĐIỂM THU] " : "[KHÁCH LẺ] ";
     const notePart = newOrder.note ? ` - Ghi chú: ${newOrder.note}` : "";
     const itemsFormatted = `${typePrefix}${newOrder.qty} ${newOrder.serviceName}${notePart}`;
 
@@ -224,7 +248,16 @@ export default function AdminDashboard() {
         if (!res.ok) throw new Error();
         showToast("✅ Đã tiếp nhận đơn hàng thành công!");
         loadData();
-        setNewOrder({ name: "", phone: "", address: "", customerType: "LE", serviceName: "", qty: 1, total: 0, note: "" });
+        setNewOrder({
+          name: "",
+          phone: "",
+          address: "",
+          customerType: "LE",
+          serviceName: "",
+          qty: 1,
+          total: 0,
+          note: "",
+        });
         setActiveTab("WAREHOUSE");
       })
       .catch(() => showToast("❌ Lỗi lưu đơn hàng."));
@@ -232,7 +265,9 @@ export default function AdminDashboard() {
 
   const changeStatus = (dbId, orderId, newStatus) => {
     if (!isAdmin) {
-      return showToast("🔒 Tài khoản Nhân viên (STAFF) chỉ được xem và thêm đơn, không có quyền trả hàng!");
+      return showToast(
+        "🔒 Tài khoản Nhân viên (STAFF) chỉ được xem và thêm đơn, không có quyền trả hàng!",
+      );
     }
     fetch(`${API_BASE}/api/orders/${dbId}/status`, {
       method: "PUT",
@@ -242,7 +277,11 @@ export default function AdminDashboard() {
       if (newStatus === "COMPLETED") {
         const order = orders.find((o) => o.db_id === dbId);
         if (order && order.rawTotal > 0) {
-          handleAddTransaction("IN", order.rawTotal, `Thu tiền đơn ${order.id} - ${order.name}`);
+          handleAddTransaction(
+            "IN",
+            order.rawTotal,
+            `Thu tiền đơn ${order.id} - ${order.name}`,
+          );
         }
       }
       loadData();
@@ -267,9 +306,12 @@ export default function AdminDashboard() {
   const handleCreateExpense = (e) => {
     e.preventDefault();
     if (!isAdmin) {
-      return showToast("🔒 Chỉ Quản lý (ADMIN) mới có quyền ghi phiếu chi tiền!");
+      return showToast(
+        "🔒 Chỉ Quản lý (ADMIN) mới có quyền ghi phiếu chi tiền!",
+      );
     }
-    if (!newExpense.amount || !newExpense.desc) return showToast("⚠️ Vui lòng nhập đủ số tiền và lý do chi!");
+    if (!newExpense.amount || !newExpense.desc)
+      return showToast("⚠️ Vui lòng nhập đủ số tiền và lý do chi!");
     handleAddTransaction("OUT", newExpense.amount, newExpense.desc);
     setNewExpense({ amount: "", desc: "" });
     showToast("💸 Đã ghi nhận khoản chi vào sổ quỹ!");
@@ -278,10 +320,14 @@ export default function AdminDashboard() {
   const handleCreateStaff = (e) => {
     e.preventDefault();
     if (!isAdmin) {
-      return showToast("🔒 Chỉ Quản lý (ADMIN) mới có quyền thêm hoặc sửa nhân sự!");
+      return showToast(
+        "🔒 Chỉ Quản lý (ADMIN) mới có quyền thêm hoặc sửa nhân sự!",
+      );
     }
     if (!newStaff.name || !newStaff.phone || !newStaff.password) {
-      return showToast("⚠️ Vui lòng nhập Tên, SĐT và Mật khẩu cấp cho nhân viên!");
+      return showToast(
+        "⚠️ Vui lòng nhập Tên, SĐT và Mật khẩu cấp cho nhân viên!",
+      );
     }
 
     fetch(`${API_BASE}/api/staff`, {
@@ -293,7 +339,13 @@ export default function AdminDashboard() {
       .then((data) => {
         if (data.error) return showToast(`❌ ${data.error}`);
         showToast("✅ Đã lưu thông tin nhân sự & phân quyền!");
-        setNewStaff({ name: "", phone: "", password: "", role: "STAFF", position: "Nhân viên tiếp nhận" });
+        setNewStaff({
+          name: "",
+          phone: "",
+          password: "",
+          role: "STAFF",
+          position: "Nhân viên tiếp nhận",
+        });
         loadData();
       })
       .catch(() => showToast("❌ Không thể lưu nhân viên."));
@@ -301,7 +353,9 @@ export default function AdminDashboard() {
 
   const handleToggleStaff = (id) => {
     if (!isAdmin) {
-      return showToast("🔒 Tài khoản Nhân viên không có quyền thay đổi phân quyền!");
+      return showToast(
+        "🔒 Tài khoản Nhân viên không có quyền thay đổi phân quyền!",
+      );
     }
     fetch(`${API_BASE}/api/staff/${id}/toggle`, { method: "PUT" })
       .then(() => {
@@ -311,19 +365,49 @@ export default function AdminDashboard() {
       .catch(() => showToast("❌ Lỗi cập nhật quyền nhân sự."));
   };
 
+  const handleConsumeInventory = (id) => {
+    if (!isAdmin)
+      return showToast("🔒 Chỉ Quản lý (ADMIN) mới được trừ kho vật tư!");
+    fetch(`${API_BASE}/api/inventory/${id}/consume`, { method: "PUT" }).then(
+      () => {
+        showToast("📉 Đã trừ 1 đơn vị vật tư tồn kho!");
+        loadData();
+      },
+    );
+  };
+
+  const handleRestockInventory = (id) => {
+    if (!isAdmin)
+      return showToast("🔒 Chỉ Quản lý (ADMIN) mới được nhập thêm vật tư!");
+    fetch(`${API_BASE}/api/inventory/${id}/restock`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ added_amount: 5 }),
+    }).then(() => {
+      showToast("📦 Đã nhập thêm +5 đơn vị vào kho vật tư!");
+      loadData();
+    });
+  };
+
   // ==========================================
   // 5. TÍNH TOÁN CHỈ SỐ DASHBOARD V14
   // ==========================================
   const todayFormattedDate = getFormattedDate(selectedDate);
-  const filteredTransactions = transactions.filter((t) => t.date === todayFormattedDate);
+  const filteredTransactions = transactions.filter(
+    (t) => t.date === todayFormattedDate,
+  );
 
-  const totalInToday = filteredTransactions.filter((t) => t.type === "IN").reduce((sum, t) => sum + t.amount, 0);
-  const totalOutToday = filteredTransactions.filter((t) => t.type === "OUT").reduce((sum, t) => sum + t.amount, 0);
+  const totalInToday = filteredTransactions
+    .filter((t) => t.type === "IN")
+    .reduce((sum, t) => sum + t.amount, 0);
+  const totalOutToday = filteredTransactions
+    .filter((t) => t.type === "OUT")
+    .reduce((sum, t) => sum + t.amount, 0);
   const profitToday = totalInToday - totalOutToday;
 
   const totalBalanceAllTime = transactions.reduce(
     (acc, t) => (t.type === "IN" ? acc + t.amount : acc - t.amount),
-    0
+    0,
   );
 
   const pendingOrders = orders.filter((o) => o.status !== "COMPLETED").length;
@@ -334,13 +418,20 @@ export default function AdminDashboard() {
     const parsed = parseItems(o.items);
     let key = o.phone ? o.phone : o.name;
     if (!customerMap.has(key)) {
-      customerMap.set(key, { name: o.name, phone: o.phone, isAgent: parsed.isAgent, spent: o.rawTotal });
+      customerMap.set(key, {
+        name: o.name,
+        phone: o.phone,
+        isAgent: parsed.isAgent,
+        spent: o.rawTotal,
+      });
     } else {
       customerMap.get(key).spent += o.rawTotal;
       if (parsed.isAgent) customerMap.get(key).isAgent = true;
     }
   });
-  const topCustomers = Array.from(customerMap.values()).sort((a, b) => b.spent - a.spent).slice(0, 3);
+  const topCustomers = Array.from(customerMap.values())
+    .sort((a, b) => b.spent - a.spent)
+    .slice(0, 3);
 
   const last7Days = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date();
@@ -348,7 +439,7 @@ export default function AdminDashboard() {
     return {
       displayStr: `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`,
       filterDate: getFormattedDate(
-        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
       ),
     };
   });
@@ -362,7 +453,10 @@ export default function AdminDashboard() {
       .reduce((sum, t) => sum + t.amount, 0);
     return { label: day.displayStr, income: dayIn, expense: dayOut };
   });
-  const maxChartValue = Math.max(...chartData.map((d) => Math.max(d.income, d.expense)), 500000);
+  const maxChartValue = Math.max(
+    ...chartData.map((d) => Math.max(d.income, d.expense)),
+    500000,
+  );
 
   const sortedOrdersForTable = [...orders]
     .filter((o) => (statusFilter === "ALL" ? true : o.status === statusFilter))
@@ -371,12 +465,14 @@ export default function AdminDashboard() {
         o.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         o.phone.includes(searchQuery) ||
         o.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        o.id.toLowerCase().includes(searchQuery.toLowerCase())
+        o.id.toLowerCase().includes(searchQuery.toLowerCase()),
     )
     .sort((a, b) => {
       if (a.status !== "COMPLETED" && b.status === "COMPLETED") return -1;
       if (a.status === "COMPLETED" && b.status !== "COMPLETED") return 1;
-      return new Date(b.rawCreatedAt).getTime() - new Date(a.rawCreatedAt).getTime();
+      return (
+        new Date(b.rawCreatedAt).getTime() - new Date(a.rawCreatedAt).getTime()
+      );
     });
 
   // Helper render viên thuốc Trạng thái kho gọn đẹp, không bao giờ rớt dòng
@@ -420,32 +516,48 @@ export default function AdminDashboard() {
       <div style={styles.appShell}>
         {/* === THANH ICON RAIL BÊN TRÁI === */}
         <div style={styles.leftRail}>
-          <img src={logoImg} alt="Logo" style={{width: '42px', height: '42px', borderRadius: '50%'}} />
+          <img
+            src={logoImg}
+            alt="Logo"
+            style={{ width: "42px", height: "42px", borderRadius: "50%" }}
+          />
 
           <div style={styles.railMenu}>
             <button
-              style={{ ...styles.railBtn, ...(activeTab === "DASHBOARD" ? styles.railBtnActive : {}) }}
+              style={{
+                ...styles.railBtn,
+                ...(activeTab === "DASHBOARD" ? styles.railBtnActive : {}),
+              }}
               onClick={() => setActiveTab("DASHBOARD")}
               title="Tổng quan"
             >
               📊
             </button>
             <button
-              style={{ ...styles.railBtn, ...(activeTab === "WAREHOUSE" ? styles.railBtnActive : {}) }}
+              style={{
+                ...styles.railBtn,
+                ...(activeTab === "WAREHOUSE" ? styles.railBtnActive : {}),
+              }}
               onClick={() => setActiveTab("WAREHOUSE")}
               title="Kho & Đơn hàng"
             >
               🧺
             </button>
             <button
-              style={{ ...styles.railBtn, ...(activeTab === "CREATE" ? styles.railBtnActive : {}) }}
+              style={{
+                ...styles.railBtn,
+                ...(activeTab === "CREATE" ? styles.railBtnActive : {}),
+              }}
               onClick={() => setActiveTab("CREATE")}
               title="Quầy tiếp nhận"
             >
               ✍️
             </button>
             <button
-              style={{ ...styles.railBtn, ...(activeTab === "STAFF" ? styles.railBtnActive : {}) }}
+              style={{
+                ...styles.railBtn,
+                ...(activeTab === "STAFF" ? styles.railBtnActive : {}),
+              }}
               onClick={() => setActiveTab("STAFF")}
               title="Quản lý nhân viên"
             >
@@ -454,7 +566,13 @@ export default function AdminDashboard() {
           </div>
 
           <div style={styles.railFooter}>
-            <button style={styles.railBtn} onClick={loadData} title="Đồng bộ lại từ MySQL">🔄</button>
+            <button
+              style={styles.railBtn}
+              onClick={loadData}
+              title="Đồng bộ lại từ MySQL"
+            >
+              🔄
+            </button>
           </div>
         </div>
 
@@ -508,10 +626,19 @@ export default function AdminDashboard() {
                       backgroundColor: isAdmin ? "#141619" : "#2563EB",
                     }}
                   >
-                    {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
+                    {currentUser.name
+                      ? currentUser.name.charAt(0).toUpperCase()
+                      : "U"}
                   </div>
                   <div>
-                    <div style={{ fontSize: "12px", fontWeight: "800", color: "#141619", whiteSpace: "nowrap" }}>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: "800",
+                        color: "#141619",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {currentUser.name} ▾
                     </div>
                     <div
@@ -522,7 +649,9 @@ export default function AdminDashboard() {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {isAdmin ? "👑 Toàn quyền (Admin)" : "🔒 Nhân viên (Staff)"}
+                      {isAdmin
+                        ? "👑 Toàn quyền (Admin)"
+                        : "🔒 Nhân viên (Staff)"}
                     </div>
                   </div>
                 </div>
@@ -546,12 +675,22 @@ export default function AdminDashboard() {
                           onClick={() => handleSelectUser(u)}
                         >
                           <div>
-                            <div style={{ fontSize: "13px", fontWeight: "700", color: "#141619" }}>
+                            <div
+                              style={{
+                                fontSize: "13px",
+                                fontWeight: "700",
+                                color: "#141619",
+                              }}
+                            >
                               {u.name} {active && "✓"}
                             </div>
-                            <div style={{ fontSize: "11px", color: "#64748B" }}>{u.phone}</div>
+                            <div style={{ fontSize: "11px", color: "#64748B" }}>
+                              {u.phone}
+                            </div>
                           </div>
-                          <span style={uAdmin ? styles.agentTag : styles.retailTag}>
+                          <span
+                            style={uAdmin ? styles.agentTag : styles.retailTag}
+                          >
                             {u.role}
                           </span>
                         </div>
@@ -568,21 +707,27 @@ export default function AdminDashboard() {
             {/* LỜI CHÀO HERO CẬP NHẬT THEO TÀI KHOẢN ĐANG CHỌN */}
             <div style={styles.greetingHeader}>
               <div>
-                <h1 style={styles.greetingTitle}>Xin chào, {currentUser.name} 👋</h1>
+                <h1 style={styles.greetingTitle}>
+                  Xin chào, {currentUser.name} 👋
+                </h1>
                 <p style={styles.greetingSub}>
                   Vai trò hiện tại:{" "}
                   <strong style={{ color: isAdmin ? "#059669" : "#EA580C" }}>
-                    {isAdmin
-                      ? "Quản lý"
-                      : "Nhân viên"}
+                    {isAdmin ? "Quản lý" : "Nhân viên"}
                   </strong>
                 </p>
               </div>
               <div style={{ display: "flex", gap: "10px" }}>
-                <button style={styles.darkPillBtn} onClick={() => setActiveTab("CREATE")}>
+                <button
+                  style={styles.darkPillBtn}
+                  onClick={() => setActiveTab("CREATE")}
+                >
                   + Tạo Đơn Mới
                 </button>
-                <button style={styles.lightPillBtn} onClick={() => setActiveTab("STAFF")}>
+                <button
+                  style={styles.lightPillBtn}
+                  onClick={() => setActiveTab("STAFF")}
+                >
                   👥 Quản Lý Nhân Viên ({staffList.length})
                 </button>
               </div>
@@ -597,36 +742,74 @@ export default function AdminDashboard() {
                   <div style={styles.balanceCard}>
                     <div style={styles.cardHeaderRow}>
                       <div>
-                        <span style={styles.mutedLabel}>Tổng Quỹ Tiền Mặt (Lũy kế)</span>
-                        <h2 style={styles.hugeBalance}>{formatMoney(totalBalanceAllTime)}</h2>
+                        <span style={styles.mutedLabel}>
+                          Tổng Quỹ Tiền Mặt (Lũy kế)
+                        </span>
+                        <h2 style={styles.hugeBalance}>
+                          {formatMoney(totalBalanceAllTime)}
+                        </h2>
                       </div>
                       <span style={styles.currencyBadge}>VNĐ ▾</span>
                     </div>
 
                     <div style={styles.actionPillRow}>
-                      <button style={styles.actionBtnDark} onClick={() => setActiveTab("CREATE")}>
+                      <button
+                        style={styles.actionBtnDark}
+                        onClick={() => setActiveTab("CREATE")}
+                      >
                         ↗ Tiếp nhận đơn
                       </button>
-                      <button style={styles.actionBtnLight} onClick={() => setActiveTab("WAREHOUSE")}>
+                      <button
+                        style={styles.actionBtnLight}
+                        onClick={() => setActiveTab("WAREHOUSE")}
+                      >
                         📦 Xem kho chăn
                       </button>
                     </div>
 
                     <div style={{ marginTop: "18px" }}>
-                      <div style={{ ...styles.mutedLabel, marginBottom: "10px" }}>👑 Top Khách Hàng Thân Thiết</div>
+                      <div
+                        style={{ ...styles.mutedLabel, marginBottom: "10px" }}
+                      >
+                        👑 Top Khách Hàng Thân Thiết
+                      </div>
                       <div style={styles.miniWalletsGrid}>
                         {topCustomers.length === 0 && (
-                          <div style={{ fontSize: "12px", color: "#94A3B8" }}>Chưa có dữ liệu khách hàng</div>
+                          <div style={{ fontSize: "12px", color: "#94A3B8" }}>
+                            Chưa có dữ liệu khách hàng
+                          </div>
                         )}
                         {topCustomers.map((c, i) => (
                           <div key={i} style={styles.miniWalletBox}>
-                            <div style={{ fontSize: "11px", fontWeight: "700", color: "#64748B", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: "700",
+                                color: "#64748B",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
                               #{i + 1} {c.name}
                             </div>
-                            <div style={{ fontSize: "14px", fontWeight: "800", color: "#141619", marginTop: "4px" }}>
+                            <div
+                              style={{
+                                fontSize: "14px",
+                                fontWeight: "800",
+                                color: "#141619",
+                                marginTop: "4px",
+                              }}
+                            >
                               {formatMoney(c.spent)}
                             </div>
-                            <div style={{ fontSize: "10px", color: "#10B981", marginTop: "2px" }}>
+                            <div
+                              style={{
+                                fontSize: "10px",
+                                color: "#10B981",
+                                marginTop: "2px",
+                              }}
+                            >
                               {c.phone || (c.isAgent ? "Đại lý" : "Khách lẻ")}
                             </div>
                           </div>
@@ -638,13 +821,27 @@ export default function AdminDashboard() {
                   <div style={styles.fourCardsGrid}>
                     <div style={styles.orangeHeroCard}>
                       <div style={styles.cardHeaderRow}>
-                        <span style={{ fontSize: "13px", fontWeight: "600", color: "rgba(255,255,255,0.9)" }}>
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: "600",
+                            color: "rgba(255,255,255,0.9)",
+                          }}
+                        >
                           Doanh Thu Ngày
                         </span>
                         <span style={styles.orangeCardIcon}>↗</span>
                       </div>
-                      <h3 style={styles.orangeCardValue}>{formatMoney(totalInToday)}</h3>
-                      <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.85)", marginTop: "8px" }}>
+                      <h3 style={styles.orangeCardValue}>
+                        {formatMoney(totalInToday)}
+                      </h3>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: "rgba(255,255,255,0.85)",
+                          marginTop: "8px",
+                        }}
+                      >
                         📅 Ngày {todayFormattedDate}
                       </div>
                     </div>
@@ -654,8 +851,17 @@ export default function AdminDashboard() {
                         <span style={styles.mutedLabel}>Chi Phí Ngày</span>
                         <span style={styles.grayCardIcon}>↘</span>
                       </div>
-                      <h3 style={styles.smallStatValue}>{formatMoney(totalOutToday)}</h3>
-                      <div style={{ fontSize: "11px", color: "#EF4444", fontWeight: "600", marginTop: "8px" }}>
+                      <h3 style={styles.smallStatValue}>
+                        {formatMoney(totalOutToday)}
+                      </h3>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: "#EF4444",
+                          fontWeight: "600",
+                          marginTop: "8px",
+                        }}
+                      >
                         Khoản chi vận hành
                       </div>
                     </div>
@@ -673,7 +879,14 @@ export default function AdminDashboard() {
                       >
                         {formatMoney(profitToday)}
                       </h3>
-                      <div style={{ fontSize: "11px", color: "#10B981", fontWeight: "600", marginTop: "8px" }}>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: "#10B981",
+                          fontWeight: "600",
+                          marginTop: "8px",
+                        }}
+                      >
                         Thu - Chi thực tế
                       </div>
                     </div>
@@ -684,9 +897,19 @@ export default function AdminDashboard() {
                         <span style={styles.grayCardIcon}>🧺</span>
                       </div>
                       <h3 style={styles.smallStatValue}>
-                        {pendingOrders} <span style={{ fontSize: "13px", color: "#64748B" }}>đơn</span>
+                        {pendingOrders}{" "}
+                        <span style={{ fontSize: "13px", color: "#64748B" }}>
+                          đơn
+                        </span>
                       </h3>
-                      <div style={{ fontSize: "11px", color: "#2563EB", fontWeight: "600", marginTop: "8px" }}>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: "#2563EB",
+                          fontWeight: "600",
+                          marginTop: "8px",
+                        }}
+                      >
                         Đã trả: {completedOrders} đơn
                       </div>
                     </div>
@@ -695,14 +918,33 @@ export default function AdminDashboard() {
                   <div style={styles.chartCard}>
                     <div style={styles.cardHeaderRow}>
                       <div>
-                        <div style={{ fontSize: "15px", fontWeight: "800", color: "#141619" }}>
+                        <div
+                          style={{
+                            fontSize: "15px",
+                            fontWeight: "800",
+                            color: "#141619",
+                          }}
+                        >
                           Biểu Đồ Thu & Chi
                         </div>
-                        <div style={{ fontSize: "11px", color: "#64748B", marginTop: "2px" }}>
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            color: "#64748B",
+                            marginTop: "2px",
+                          }}
+                        >
                           So sánh 7 ngày gần nhất
                         </div>
                       </div>
-                      <div style={{ display: "flex", gap: "10px", fontSize: "11px", fontWeight: "700" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "10px",
+                          fontSize: "11px",
+                          fontWeight: "700",
+                        }}
+                      >
                         <span style={{ color: "#FF5B37" }}>● Thu</span>
                         <span style={{ color: "#141619" }}>● Chi</span>
                       </div>
@@ -737,9 +979,20 @@ export default function AdminDashboard() {
                 {/* DÒNG DƯỚI */}
                 <div style={styles.bentoBottomGrid}>
                   <div style={styles.limitCard}>
-                    <span style={styles.mutedLabel}>Tỷ Lệ Trả Chăn Hoàn Tất</span>
-                    <div style={{ fontSize: "22px", fontWeight: "800", margin: "10px 0" }}>
-                      {orders.length > 0 ? Math.round((completedOrders / orders.length) * 100) : 0}%
+                    <span style={styles.mutedLabel}>
+                      Tỷ Lệ Trả Chăn Hoàn Tất
+                    </span>
+                    <div
+                      style={{
+                        fontSize: "22px",
+                        fontWeight: "800",
+                        margin: "10px 0",
+                      }}
+                    >
+                      {orders.length > 0
+                        ? Math.round((completedOrders / orders.length) * 100)
+                        : 0}
+                      %
                     </div>
                     <div style={styles.progressTrack}>
                       <div
@@ -749,22 +1002,49 @@ export default function AdminDashboard() {
                         }}
                       />
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#64748B", marginTop: "10px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        fontSize: "12px",
+                        color: "#64748B",
+                        marginTop: "10px",
+                      }}
+                    >
                       <span>Đang giặt: {pendingOrders} đơn</span>
                       <span>Tổng: {orders.length} đơn</span>
                     </div>
 
-                    <div style={{ marginTop: "22px", paddingTop: "16px", borderTop: "1px solid #F1F5F9" }}>
-                      <span style={styles.mutedLabel}>Tài Khoản Trong Hệ Thống</span>
-                      <div style={{ fontSize: "18px", fontWeight: "800", marginTop: "6px", color: "#141619" }}>
+                    <div
+                      style={{
+                        marginTop: "22px",
+                        paddingTop: "16px",
+                        borderTop: "1px solid #F1F5F9",
+                      }}
+                    >
+                      <span style={styles.mutedLabel}>
+                        Tài Khoản Trong Hệ Thống
+                      </span>
+                      <div
+                        style={{
+                          fontSize: "18px",
+                          fontWeight: "800",
+                          marginTop: "6px",
+                          color: "#141619",
+                        }}
+                      >
                         {staffList.length} tài khoản (MySQL)
                       </div>
                     </div>
                   </div>
 
                   <div style={styles.recentTableCard}>
-                    <div style={{ ...styles.cardHeaderRow, marginBottom: "14px" }}>
-                      <div style={{ fontSize: "16px", fontWeight: "800" }}>Hoạt Động Đơn Hàng Gần Đây</div>
+                    <div
+                      style={{ ...styles.cardHeaderRow, marginBottom: "14px" }}
+                    >
+                      <div style={{ fontSize: "16px", fontWeight: "800" }}>
+                        Hoạt Động Đơn Hàng Gần Đây
+                      </div>
                       <div style={{ display: "flex", gap: "8px" }}>
                         <input
                           type="text"
@@ -773,7 +1053,10 @@ export default function AdminDashboard() {
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                         />
-                        <button style={styles.lightPillBtn} onClick={() => setActiveTab("WAREHOUSE")}>
+                        <button
+                          style={styles.lightPillBtn}
+                          onClick={() => setActiveTab("WAREHOUSE")}
+                        >
                           Xem tất cả ➔
                         </button>
                       </div>
@@ -787,9 +1070,15 @@ export default function AdminDashboard() {
                           <th style={styles.v14Th}>SĐT</th>
                           <th style={styles.v14Th}>Địa Chỉ</th>
                           <th style={styles.v14Th}>Dịch Vụ Giặt</th>
-                          <th style={{ ...styles.v14Th, textAlign: "right" }}>Thành Tiền</th>
-                          <th style={{ ...styles.v14Th, textAlign: "center" }}>Trạng Thái Kho</th>
-                          <th style={{ ...styles.v14Th, textAlign: "right" }}>Hành Động</th>
+                          <th style={{ ...styles.v14Th, textAlign: "right" }}>
+                            Thành Tiền
+                          </th>
+                          <th style={{ ...styles.v14Th, textAlign: "center" }}>
+                            Trạng Thái Kho
+                          </th>
+                          <th style={{ ...styles.v14Th, textAlign: "right" }}>
+                            Hành Động
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -797,15 +1086,31 @@ export default function AdminDashboard() {
                           const parsed = parseItems(order.items);
                           return (
                             <tr key={order.id} style={styles.v14Tr}>
-                              <td style={{ ...styles.v14Td, whiteSpace: "nowrap" }}>
-                                <span style={{ fontWeight: "800" }}>#{order.id}</span>
+                              <td
+                                style={{
+                                  ...styles.v14Td,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                <span style={{ fontWeight: "800" }}>
+                                  #{order.id}
+                                </span>
                               </td>
                               <td style={styles.v14Td}>
-                                <div style={{ fontWeight: "700", color: "#141619" }}>{order.name}</div>
+                                <div
+                                  style={{
+                                    fontWeight: "700",
+                                    color: "#141619",
+                                  }}
+                                >
+                                  {order.name}
+                                </div>
                                 <div
                                   style={{
                                     fontSize: "11px",
-                                    color: parsed.isAgent ? "#B45309" : "#64748B",
+                                    color: parsed.isAgent
+                                      ? "#B45309"
+                                      : "#64748B",
                                     fontWeight: parsed.isAgent ? "700" : "500",
                                     marginTop: "2px",
                                   }}
@@ -813,34 +1118,76 @@ export default function AdminDashboard() {
                                   {parsed.isAgent ? "Đại lý" : "Khách lẻ"}
                                 </div>
                               </td>
-                              <td style={{ ...styles.v14Td, whiteSpace: "nowrap", color: "#334155", fontWeight: "600" }}>
+                              <td
+                                style={{
+                                  ...styles.v14Td,
+                                  whiteSpace: "nowrap",
+                                  color: "#334155",
+                                  fontWeight: "600",
+                                }}
+                              >
                                 {order.phone || "---"}
                               </td>
                               <td style={{ ...styles.v14Td, color: "#64748B" }}>
                                 {order.address || "---"}
                               </td>
                               <td style={styles.v14Td}>
-                                <span style={{ fontWeight: "600" }}>{parsed.service}</span>
+                                <span style={{ fontWeight: "600" }}>
+                                  {parsed.service}
+                                </span>
                               </td>
-                              <td style={{ ...styles.v14Td, fontWeight: "800", textAlign: "right", whiteSpace: "nowrap" }}>
+                              <td
+                                style={{
+                                  ...styles.v14Td,
+                                  fontWeight: "800",
+                                  textAlign: "right",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
                                 {order.total}
                               </td>
-                              <td style={{ ...styles.v14Td, textAlign: "center", whiteSpace: "nowrap" }}>
+                              <td
+                                style={{
+                                  ...styles.v14Td,
+                                  textAlign: "center",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
                                 {renderStatusBadge(order.status)}
                               </td>
-                              <td style={{ ...styles.v14Td, textAlign: "right", whiteSpace: "nowrap" }}>
+                              <td
+                                style={{
+                                  ...styles.v14Td,
+                                  textAlign: "right",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
                                 {order.status !== "COMPLETED" ? (
                                   <button
                                     style={{
                                       ...styles.completeMiniBtn,
                                       opacity: isAdmin ? 1 : 0.55,
                                     }}
-                                    onClick={() => changeStatus(order.db_id, order.id, "COMPLETED")}
+                                    onClick={() =>
+                                      changeStatus(
+                                        order.db_id,
+                                        order.id,
+                                        "COMPLETED",
+                                      )
+                                    }
                                   >
                                     ✔ Trả Hàng
                                   </button>
                                 ) : (
-                                  <span style={{ fontSize: "12px", color: "#10B981", fontWeight: "700" }}>✓ Đã giao</span>
+                                  <span
+                                    style={{
+                                      fontSize: "12px",
+                                      color: "#10B981",
+                                      fontWeight: "700",
+                                    }}
+                                  >
+                                    ✓ Đã giao
+                                  </span>
                                 )}
                               </td>
                             </tr>
@@ -859,7 +1206,13 @@ export default function AdminDashboard() {
             {activeTab === "WAREHOUSE" && (
               <div style={styles.recentTableCard}>
                 <div style={{ ...styles.cardHeaderRow, marginBottom: "18px" }}>
-                  <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "10px",
+                      alignItems: "center",
+                    }}
+                  >
                     <input
                       type="text"
                       placeholder="🔍 Tìm mã đơn, tên khách, SĐT, địa chỉ..."
@@ -873,14 +1226,19 @@ export default function AdminDashboard() {
                         onClick={() => setStatusFilter(st)}
                         style={{
                           ...styles.filterChip,
-                          ...(statusFilter === st ? styles.filterChipActive : {}),
+                          ...(statusFilter === st
+                            ? styles.filterChipActive
+                            : {}),
                         }}
                       >
                         {st === "ALL" ? "Tất cả đơn" : STATUS_CONFIG[st]?.label}
                       </button>
                     ))}
                   </div>
-                  <button style={styles.darkPillBtn} onClick={() => setActiveTab("CREATE")}>
+                  <button
+                    style={styles.darkPillBtn}
+                    onClick={() => setActiveTab("CREATE")}
+                  >
                     + Tiếp Nhận Đơn Mới
                   </button>
                 </div>
@@ -888,20 +1246,59 @@ export default function AdminDashboard() {
                 <table style={styles.v14Table}>
                   <thead>
                     <tr>
-                      <th style={{ ...styles.v14Th, width: "120px" }}>Mã / Ngày Nhận</th>
-                      <th style={{ ...styles.v14Th, width: "160px" }}>Khách Hàng</th>
-                      <th style={{ ...styles.v14Th, width: "120px" }}>Số Điện Thoại</th>
-                      <th style={{ ...styles.v14Th, width: "150px" }}>Địa Chỉ</th>
+                      <th style={{ ...styles.v14Th, width: "120px" }}>
+                        Mã / Ngày Nhận
+                      </th>
+                      <th style={{ ...styles.v14Th, width: "160px" }}>
+                        Khách Hàng
+                      </th>
+                      <th style={{ ...styles.v14Th, width: "120px" }}>
+                        Số Điện Thoại
+                      </th>
+                      <th style={{ ...styles.v14Th, width: "150px" }}>
+                        Địa Chỉ
+                      </th>
                       <th style={styles.v14Th}>Chi Tiết Chăn & Ghi Chú</th>
-                      <th style={{ ...styles.v14Th, width: "120px", textAlign: "right" }}>Tổng Tiền</th>
-                      <th style={{ ...styles.v14Th, width: "140px", textAlign: "center" }}>Trạng Thái Kho</th>
-                      <th style={{ ...styles.v14Th, width: "130px", textAlign: "right" }}>Hành Động</th>
+                      <th
+                        style={{
+                          ...styles.v14Th,
+                          width: "120px",
+                          textAlign: "right",
+                        }}
+                      >
+                        Tổng Tiền
+                      </th>
+                      <th
+                        style={{
+                          ...styles.v14Th,
+                          width: "140px",
+                          textAlign: "center",
+                        }}
+                      >
+                        Trạng Thái Kho
+                      </th>
+                      <th
+                        style={{
+                          ...styles.v14Th,
+                          width: "130px",
+                          textAlign: "right",
+                        }}
+                      >
+                        Hành Động
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {sortedOrdersForTable.length === 0 && (
                       <tr>
-                        <td colSpan="8" style={{ textAlign: "center", padding: "48px", color: "#94A3B8" }}>
+                        <td
+                          colSpan="8"
+                          style={{
+                            textAlign: "center",
+                            padding: "48px",
+                            color: "#94A3B8",
+                          }}
+                        >
                           Không tìm thấy đơn hàng nào khớp bộ lọc.
                         </td>
                       </tr>
@@ -911,11 +1308,27 @@ export default function AdminDashboard() {
                       return (
                         <tr key={order.id} style={styles.v14Tr}>
                           <td style={{ ...styles.v14Td, whiteSpace: "nowrap" }}>
-                            <div style={{ fontWeight: "800", color: "#141619" }}>#{order.id}</div>
-                            <div style={{ fontSize: "11px", color: "#64748B", marginTop: "2px" }}>{order.date}</div>
+                            <div
+                              style={{ fontWeight: "800", color: "#141619" }}
+                            >
+                              #{order.id}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: "#64748B",
+                                marginTop: "2px",
+                              }}
+                            >
+                              {order.date}
+                            </div>
                           </td>
                           <td style={styles.v14Td}>
-                            <div style={{ fontWeight: "700", color: "#141619" }}>{order.name}</div>
+                            <div
+                              style={{ fontWeight: "700", color: "#141619" }}
+                            >
+                              {order.name}
+                            </div>
                             <div
                               style={{
                                 fontSize: "11px",
@@ -927,15 +1340,28 @@ export default function AdminDashboard() {
                               {parsed.isAgent ? "Đại lý" : "Khách lẻ"}
                             </div>
                           </td>
-                          <td style={{ ...styles.v14Td, whiteSpace: "nowrap", fontWeight: "600", color: "#334155" }}>
+                          <td
+                            style={{
+                              ...styles.v14Td,
+                              whiteSpace: "nowrap",
+                              fontWeight: "600",
+                              color: "#334155",
+                            }}
+                          >
                             {order.phone || "---"}
                           </td>
                           <td style={{ ...styles.v14Td, color: "#475569" }}>
                             {order.address || "---"}
                           </td>
                           <td style={styles.v14Td}>
-                            <div style={{ fontWeight: "600", color: "#1E293B" }}>{parsed.service}</div>
-                            {parsed.note && <div style={styles.noteBox}>📝 {parsed.note}</div>}
+                            <div
+                              style={{ fontWeight: "600", color: "#1E293B" }}
+                            >
+                              {parsed.service}
+                            </div>
+                            {parsed.note && (
+                              <div style={styles.noteBox}>📝 {parsed.note}</div>
+                            )}
                           </td>
                           <td
                             style={{
@@ -949,22 +1375,48 @@ export default function AdminDashboard() {
                           >
                             {order.total}
                           </td>
-                          <td style={{ ...styles.v14Td, textAlign: "center", whiteSpace: "nowrap" }}>
+                          <td
+                            style={{
+                              ...styles.v14Td,
+                              textAlign: "center",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
                             {renderStatusBadge(order.status)}
                           </td>
-                          <td style={{ ...styles.v14Td, textAlign: "right", whiteSpace: "nowrap" }}>
+                          <td
+                            style={{
+                              ...styles.v14Td,
+                              textAlign: "right",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
                             {order.status !== "COMPLETED" ? (
                               <button
                                 style={{
                                   ...styles.completeMiniBtn,
                                   opacity: isAdmin ? 1 : 0.55,
                                 }}
-                                onClick={() => changeStatus(order.db_id, order.id, "COMPLETED")}
+                                onClick={() =>
+                                  changeStatus(
+                                    order.db_id,
+                                    order.id,
+                                    "COMPLETED",
+                                  )
+                                }
                               >
                                 ✔ Trả Hàng
                               </button>
                             ) : (
-                              <span style={{ color: "#10B981", fontSize: "12px", fontWeight: "700" }}>✓ Đã giao</span>
+                              <span
+                                style={{
+                                  color: "#10B981",
+                                  fontSize: "12px",
+                                  fontWeight: "700",
+                                }}
+                              >
+                                ✓ Đã giao
+                              </span>
                             )}
                           </td>
                         </tr>
@@ -981,19 +1433,30 @@ export default function AdminDashboard() {
             {activeTab === "CREATE" && (
               <div style={styles.bentoBottomGrid}>
                 <div style={styles.recentTableCard}>
-                  <h3 style={{ marginTop: 0, marginBottom: "18px", fontSize: "18px", fontWeight: "800" }}>
+                  <h3
+                    style={{
+                      marginTop: 0,
+                      marginBottom: "18px",
+                      fontSize: "18px",
+                      fontWeight: "800",
+                    }}
+                  >
                     ✍️ Tiếp Nhận Đơn Giặt Chăn (Khách Lẻ & Đại Lý)
                   </h3>
                   <form onSubmit={handleCreateOrder}>
                     <div style={styles.formRow}>
                       <div style={styles.formGroup}>
-                        <label style={styles.label}>Tên Khách Hàng / Đại Lý (*)</label>
+                        <label style={styles.label}>
+                          Tên Khách Hàng / Đại Lý (*)
+                        </label>
                         <input
                           type="text"
                           style={styles.input}
                           placeholder="VD: Cô Mười / Đại lý Hòa Bình..."
                           value={newOrder.name}
-                          onChange={(e) => setNewOrder({ ...newOrder, name: e.target.value })}
+                          onChange={(e) =>
+                            setNewOrder({ ...newOrder, name: e.target.value })
+                          }
                           required
                         />
                       </div>
@@ -1004,7 +1467,9 @@ export default function AdminDashboard() {
                           style={styles.input}
                           placeholder="VD: 0912345678"
                           value={newOrder.phone}
-                          onChange={(e) => setNewOrder({ ...newOrder, phone: e.target.value })}
+                          onChange={(e) =>
+                            setNewOrder({ ...newOrder, phone: e.target.value })
+                          }
                         />
                       </div>
                     </div>
@@ -1015,10 +1480,17 @@ export default function AdminDashboard() {
                         <select
                           style={styles.input}
                           value={newOrder.customerType}
-                          onChange={(e) => setNewOrder({ ...newOrder, customerType: e.target.value })}
+                          onChange={(e) =>
+                            setNewOrder({
+                              ...newOrder,
+                              customerType: e.target.value,
+                            })
+                          }
                         >
                           <option value="LE">👤 Khách Lẻ</option>
-                          <option value="AGENT">🏢 Đại Lý / Điểm Thu Gom</option>
+                          <option value="AGENT">
+                            🏢 Đại Lý / Điểm Thu Gom
+                          </option>
                         </select>
                       </div>
                       <div style={styles.formGroup}>
@@ -1028,20 +1500,34 @@ export default function AdminDashboard() {
                           style={styles.input}
                           placeholder="VD: Khu 2, thị trấn..."
                           value={newOrder.address}
-                          onChange={(e) => setNewOrder({ ...newOrder, address: e.target.value })}
+                          onChange={(e) =>
+                            setNewOrder({
+                              ...newOrder,
+                              address: e.target.value,
+                            })
+                          }
                         />
                       </div>
                     </div>
 
                     <div style={styles.formRow}>
                       <div style={{ ...styles.formGroup, flex: 2 }}>
-                        <label style={styles.label}>Chọn Loại Chăn / Dịch Vụ (*)</label>
+                        <label style={styles.label}>
+                          Chọn Loại Chăn / Dịch Vụ (*)
+                        </label>
                         <select
                           style={{ ...styles.input, fontWeight: "700" }}
                           value={newOrder.serviceName}
-                          onChange={(e) => handleProductOrQtyChange("serviceName", e.target.value)}
+                          onChange={(e) =>
+                            handleProductOrQtyChange(
+                              "serviceName",
+                              e.target.value,
+                            )
+                          }
                         >
-                          <option value="">--- Chọn bảng giá dịch vụ ---</option>
+                          <option value="">
+                            --- Chọn bảng giá dịch vụ ---
+                          </option>
                           {priceList.map((p) => (
                             <option key={p.id || p.name} value={p.name}>
                               {p.name} — {formatMoney(p.price)}
@@ -1054,9 +1540,15 @@ export default function AdminDashboard() {
                         <input
                           type="number"
                           min="1"
-                          style={{ ...styles.input, textAlign: "center", fontWeight: "800" }}
+                          style={{
+                            ...styles.input,
+                            textAlign: "center",
+                            fontWeight: "800",
+                          }}
                           value={newOrder.qty}
-                          onChange={(e) => handleProductOrQtyChange("qty", e.target.value)}
+                          onChange={(e) =>
+                            handleProductOrQtyChange("qty", e.target.value)
+                          }
                         />
                       </div>
                     </div>
@@ -1069,28 +1561,52 @@ export default function AdminDashboard() {
                           style={styles.input}
                           placeholder="VD: Giặt riêng, lấy gấp..."
                           value={newOrder.note}
-                          onChange={(e) => setNewOrder({ ...newOrder, note: e.target.value })}
+                          onChange={(e) =>
+                            setNewOrder({ ...newOrder, note: e.target.value })
+                          }
                         />
                       </div>
                       <div style={styles.formGroup}>
                         <label style={styles.label}>Thành Tiền (VNĐ)</label>
                         <input
                           type="number"
-                          style={{ ...styles.input, fontWeight: "800", color: "#FF5B37", background: "#FFF7ED" }}
+                          style={{
+                            ...styles.input,
+                            fontWeight: "800",
+                            color: "#FF5B37",
+                            background: "#FFF7ED",
+                          }}
                           value={newOrder.total}
-                          onChange={(e) => setNewOrder({ ...newOrder, total: e.target.value })}
+                          onChange={(e) =>
+                            setNewOrder({ ...newOrder, total: e.target.value })
+                          }
                         />
                       </div>
                     </div>
 
-                    <button type="submit" style={{ ...styles.darkPillBtn, width: "100%", padding: "14px" }}>
+                    <button
+                      type="submit"
+                      style={{
+                        ...styles.darkPillBtn,
+                        width: "100%",
+                        padding: "14px",
+                      }}
+                    >
                       LƯU ĐƠN HÀNG VÀO KHO
                     </button>
                   </form>
                 </div>
 
                 <div style={styles.limitCard}>
-                  <h3 style={{ marginTop: 0, marginBottom: "16px", fontSize: "16px", fontWeight: "800", color: "#E11D48" }}>
+                  <h3
+                    style={{
+                      marginTop: 0,
+                      marginBottom: "16px",
+                      fontSize: "16px",
+                      fontWeight: "800",
+                      color: "#E11D48",
+                    }}
+                  >
                     💸 Ghi Phiếu Chi Vận Hành {!isAdmin && "(Chỉ Admin)"}
                   </h3>
                   <form onSubmit={handleCreateExpense}>
@@ -1101,7 +1617,12 @@ export default function AdminDashboard() {
                         style={styles.input}
                         placeholder="VD: 120000"
                         value={newExpense.amount}
-                        onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+                        onChange={(e) =>
+                          setNewExpense({
+                            ...newExpense,
+                            amount: e.target.value,
+                          })
+                        }
                       />
                     </div>
                     <div style={{ ...styles.formGroup, marginBottom: "18px" }}>
@@ -1111,7 +1632,9 @@ export default function AdminDashboard() {
                         style={styles.input}
                         placeholder="VD: Mua nước giặt, túi bóng..."
                         value={newExpense.desc}
-                        onChange={(e) => setNewExpense({ ...newExpense, desc: e.target.value })}
+                        onChange={(e) =>
+                          setNewExpense({ ...newExpense, desc: e.target.value })
+                        }
                       />
                     </div>
                     <button
@@ -1126,6 +1649,84 @@ export default function AdminDashboard() {
                       XÁC NHẬN CHI TIỀN
                     </button>
                   </form>
+
+                  <div
+                    style={{
+                      marginTop: "24px",
+                      paddingTop: "18px",
+                      borderTop: "1px solid #F1F5F9",
+                    }}
+                  >
+                    <h3
+                      style={{
+                        marginTop: 0,
+                        marginBottom: "12px",
+                        fontSize: "15px",
+                        fontWeight: "800",
+                        color: "#141619",
+                      }}
+                    >
+                      🧴 Kho Vật Tư Tiêu Hao (MySQL)
+                    </h3>
+                    {inventory.map((item) => (
+                      <div
+                        key={item.id}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "10px 12px",
+                          backgroundColor: "#F8FAFC",
+                          borderRadius: "12px",
+                          marginBottom: "8px",
+                          border: "1px solid #F1F5F9",
+                        }}
+                      >
+                        <div>
+                          <div
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: "700",
+                              color: "#141619",
+                            }}
+                          >
+                            {item.name}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "#059669",
+                              fontWeight: "700",
+                            }}
+                          >
+                            Tồn kho: {item.stock} {item.unit}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          <button
+                            type="button"
+                            style={{
+                              ...styles.lightPillBtn,
+                              padding: "5px 10px",
+                            }}
+                            onClick={() => handleConsumeInventory(item.id)}
+                          >
+                            -1 Dùng
+                          </button>
+                          <button
+                            type="button"
+                            style={{
+                              ...styles.darkPillBtn,
+                              padding: "5px 10px",
+                            }}
+                            onClick={() => handleRestockInventory(item.id)}
+                          >
+                            +5 Nhập
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -1136,56 +1737,87 @@ export default function AdminDashboard() {
             {activeTab === "STAFF" && (
               <div style={styles.bentoBottomGrid}>
                 <div style={styles.limitCard}>
-                  <h3 style={{ marginTop: 0, marginBottom: "6px", fontSize: "16px", fontWeight: "800" }}>
+                  <h3
+                    style={{
+                      marginTop: 0,
+                      marginBottom: "6px",
+                      fontSize: "16px",
+                      fontWeight: "800",
+                    }}
+                  >
                     ➕ Thêm Nhân Viên & Cấp Quyền App
                   </h3>
-                  <p style={{ fontSize: "12px", color: "#64748B", marginBottom: "16px" }}>
-                    Tài khoản tạo tại đây lưu thẳng vào bảng `users` trong MySQL. Nhân viên (`STAFF`) chỉ được phép xem và tạo đơn Khách lẻ & Đại lý.
+                  <p
+                    style={{
+                      fontSize: "12px",
+                      color: "#64748B",
+                      marginBottom: "16px",
+                    }}
+                  >
+                    Tài khoản tạo tại đây lưu thẳng vào bảng `users` trong
+                    MySQL. Nhân viên (`STAFF`) chỉ được phép xem và tạo đơn
+                    Khách lẻ & Đại lý.
                   </p>
 
                   <form onSubmit={handleCreateStaff}>
                     <div style={{ ...styles.formGroup, marginBottom: "12px" }}>
-                      <label style={styles.label}>Họ và Tên Nhân Viên (*)</label>
+                      <label style={styles.label}>
+                        Họ và Tên Nhân Viên (*)
+                      </label>
                       <input
                         type="text"
                         style={styles.input}
                         placeholder="VD: Nguyễn Văn A"
                         value={newStaff.name}
-                        onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
+                        onChange={(e) =>
+                          setNewStaff({ ...newStaff, name: e.target.value })
+                        }
                         required
                       />
                     </div>
 
                     <div style={{ ...styles.formGroup, marginBottom: "12px" }}>
-                      <label style={styles.label}>Số Điện Thoại Đăng Nhập (*)</label>
+                      <label style={styles.label}>
+                        Số Điện Thoại Đăng Nhập (*)
+                      </label>
                       <input
                         type="text"
                         style={styles.input}
                         placeholder="VD: 0988111222"
                         value={newStaff.phone}
-                        onChange={(e) => setNewStaff({ ...newStaff, phone: e.target.value })}
+                        onChange={(e) =>
+                          setNewStaff({ ...newStaff, phone: e.target.value })
+                        }
                         required
                       />
                     </div>
 
                     <div style={{ ...styles.formGroup, marginBottom: "12px" }}>
-                      <label style={styles.label}>Mật Khẩu Đăng Nhập App (*)</label>
+                      <label style={styles.label}>
+                        Mật Khẩu Đăng Nhập App (*)
+                      </label>
                       <input
                         type="password"
                         style={styles.input}
                         placeholder="Nhập mật khẩu..."
                         value={newStaff.password}
-                        onChange={(e) => setNewStaff({ ...newStaff, password: e.target.value })}
+                        onChange={(e) =>
+                          setNewStaff({ ...newStaff, password: e.target.value })
+                        }
                         required
                       />
                     </div>
 
                     <div style={{ ...styles.formGroup, marginBottom: "18px" }}>
-                      <label style={styles.label}>Phân Quyền Trên App & Web</label>
+                      <label style={styles.label}>
+                        Phân Quyền Trên App & Web
+                      </label>
                       <select
                         style={{ ...styles.input, fontWeight: "700" }}
                         value={newStaff.role}
-                        onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })}
+                        onChange={(e) =>
+                          setNewStaff({ ...newStaff, role: e.target.value })
+                        }
                       >
                         <option value="STAFF">Nhân viên</option>
                         <option value="ADMIN">Quản lý</option>
@@ -1207,11 +1839,16 @@ export default function AdminDashboard() {
                 </div>
 
                 <div style={styles.recentTableCard}>
-                  <div style={{ ...styles.cardHeaderRow, marginBottom: "16px" }}>
+                  <div
+                    style={{ ...styles.cardHeaderRow, marginBottom: "16px" }}
+                  >
                     <div>
-                      <div style={{ fontSize: "16px", fontWeight: "800" }}>Danh Sách Tài Khoản Hệ Thống</div>
+                      <div style={{ fontSize: "16px", fontWeight: "800" }}>
+                        Danh Sách Tài Khoản Hệ Thống
+                      </div>
                       <div style={{ fontSize: "12px", color: "#64748B" }}>
-                        Bấm nút "Đổi quyền" ở cột Thao tác để chuyển nhanh giữa ADMIN và STAFF
+                        Bấm nút "Đổi quyền" ở cột Thao tác để chuyển nhanh giữa
+                        ADMIN và STAFF
                       </div>
                     </div>
                   </div>
@@ -1224,31 +1861,72 @@ export default function AdminDashboard() {
                         <th style={styles.v14Th}>Số Điện Thoại</th>
                         <th style={styles.v14Th}>Quyền Hiện Tại</th>
                         <th style={styles.v14Th}>Trạng Thái</th>
-                        <th style={{ ...styles.v14Th, textAlign: "right" }}>Thao Tác</th>
+                        <th style={{ ...styles.v14Th, textAlign: "right" }}>
+                          Thao Tác
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {staffList.length === 0 && (
                         <tr>
-                          <td colSpan="6" style={{ textAlign: "center", padding: "40px", color: "#94A3B8" }}>
+                          <td
+                            colSpan="6"
+                            style={{
+                              textAlign: "center",
+                              padding: "40px",
+                              color: "#94A3B8",
+                            }}
+                          >
                             Chưa có nhân viên nào trong danh sách.
                           </td>
                         </tr>
                       )}
                       {staffList.map((st) => (
                         <tr key={st.id} style={styles.v14Tr}>
-                          <td style={{ ...styles.v14Td, fontWeight: "700", whiteSpace: "nowrap" }}>#NV0{st.id}</td>
-                          <td style={{ ...styles.v14Td, fontWeight: "700", color: "#141619" }}>{st.name}</td>
-                          <td style={{ ...styles.v14Td, whiteSpace: "nowrap" }}>{st.phone || "---"}</td>
+                          <td
+                            style={{
+                              ...styles.v14Td,
+                              fontWeight: "700",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            #NV0{st.id}
+                          </td>
+                          <td
+                            style={{
+                              ...styles.v14Td,
+                              fontWeight: "700",
+                              color: "#141619",
+                            }}
+                          >
+                            {st.name}
+                          </td>
                           <td style={{ ...styles.v14Td, whiteSpace: "nowrap" }}>
-                            <span style={st.role === "ADMIN" ? styles.agentTag : styles.retailTag}>
-                              {st.role === "ADMIN" ? "👑 Quản lý (ADMIN)" : "🔒 Nhân viên (STAFF)"}
+                            {st.phone || "---"}
+                          </td>
+                          <td style={{ ...styles.v14Td, whiteSpace: "nowrap" }}>
+                            <span
+                              style={
+                                st.role === "ADMIN"
+                                  ? styles.agentTag
+                                  : styles.retailTag
+                              }
+                            >
+                              {st.role === "ADMIN"
+                                ? "👑 Quản lý (ADMIN)"
+                                : "🔒 Nhân viên (STAFF)"}
                             </span>
                           </td>
                           <td style={{ ...styles.v14Td, whiteSpace: "nowrap" }}>
                             {renderStatusBadge("COMPLETED")}
                           </td>
-                          <td style={{ ...styles.v14Td, textAlign: "right", whiteSpace: "nowrap" }}>
+                          <td
+                            style={{
+                              ...styles.v14Td,
+                              textAlign: "right",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
                             <button
                               style={{
                                 ...styles.lightPillBtn,
@@ -1256,7 +1934,8 @@ export default function AdminDashboard() {
                               }}
                               onClick={() => handleToggleStaff(st.id)}
                             >
-                              🔄 Đổi sang {st.role === "ADMIN" ? "STAFF" : "ADMIN"}
+                              🔄 Đổi sang{" "}
+                              {st.role === "ADMIN" ? "STAFF" : "ADMIN"}
                             </button>
                           </td>
                         </tr>
@@ -1278,244 +1957,543 @@ export default function AdminDashboard() {
 // ==========================================
 const styles = {
   toast: {
-    position: "fixed", top: "24px", right: "24px", backgroundColor: "#141619", color: "#FFF",
-    padding: "14px 22px", borderRadius: "99px", zIndex: 9999, boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
-    fontWeight: "700", fontSize: "13px",
+    position: "fixed",
+    top: "24px",
+    right: "24px",
+    backgroundColor: "#141619",
+    color: "#FFF",
+    padding: "14px 22px",
+    borderRadius: "99px",
+    zIndex: 9999,
+    boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+    fontWeight: "700",
+    fontSize: "13px",
   },
   appShell: {
-    display: "flex", width: "100%", height: "100%", backgroundColor: "#F7F8FA",
-    borderRadius: "28px", overflow: "hidden", boxShadow: "0 20px 50px rgba(0,0,0,0.06)",
+    display: "flex",
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#F7F8FA",
+    borderRadius: "28px",
+    overflow: "hidden",
+    boxShadow: "0 20px 50px rgba(0,0,0,0.06)",
     border: "1px solid #FFFFFF",
   },
   leftRail: {
-    width: "74px", backgroundColor: "#FFFFFF", borderRight: "1px solid #EFEFEF",
-    display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 0", justifyContent: "space-between",
+    width: "74px",
+    backgroundColor: "#FFFFFF",
+    borderRight: "1px solid #EFEFEF",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    padding: "20px 0",
+    justifyContent: "space-between",
   },
   brandBadge: {
-    width: "42px", height: "42px", borderRadius: "50%",
+    width: "42px",
+    height: "42px",
+    borderRadius: "50%",
     background: "linear-gradient(135deg, #FF5B37 0%, #FF8057 100%)",
-    display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "20px",
     boxShadow: "0 6px 16px rgba(255, 91, 55, 0.3)",
   },
   railMenu: { display: "flex", flexDirection: "column", gap: "14px" },
   railBtn: {
-    width: "42px", height: "42px", borderRadius: "50%", border: "none", background: "transparent",
-    cursor: "pointer", fontSize: "17px", display: "flex", alignItems: "center", justifyContent: "center",
+    width: "42px",
+    height: "42px",
+    borderRadius: "50%",
+    border: "none",
+    background: "transparent",
+    cursor: "pointer",
+    fontSize: "17px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     transition: "all 0.2s",
   },
   railBtnActive: {
-    backgroundColor: "#141619", color: "#FFFFFF", boxShadow: "0 4px 12px rgba(20,22,25,0.2)",
+    backgroundColor: "#141619",
+    color: "#FFFFFF",
+    boxShadow: "0 4px 12px rgba(20,22,25,0.2)",
   },
   railFooter: { display: "flex", flexDirection: "column", gap: "10px" },
 
-  mainArea: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" },
+  mainArea: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+  },
   topBar: {
-    height: "74px", padding: "0 32px", display: "flex", alignItems: "center",
-    justifyContent: "space-between", borderBottom: "1px solid #EFEFEF", backgroundColor: "#FFFFFF",
+    height: "74px",
+    padding: "0 32px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottom: "1px solid #EFEFEF",
+    backgroundColor: "#FFFFFF",
   },
   brandTitleWrap: { display: "flex", alignItems: "center", gap: "10px" },
   brandDot: {
-    background: "#FF5B37", color: "#FFF", fontSize: "11px", fontWeight: "800",
-    padding: "4px 8px", borderRadius: "99px",
+    background: "#FF5B37",
+    color: "#FFF",
+    fontSize: "11px",
+    fontWeight: "800",
+    padding: "4px 8px",
+    borderRadius: "99px",
   },
   brandName: { fontSize: "16px", fontWeight: "800", color: "#141619" },
   pillNavContainer: {
-    display: "flex", gap: "6px", backgroundColor: "#F3F4F6", padding: "5px", borderRadius: "99px",
+    display: "flex",
+    gap: "6px",
+    backgroundColor: "#F3F4F6",
+    padding: "5px",
+    borderRadius: "99px",
   },
   pillNavItem: {
-    padding: "8px 18px", borderRadius: "99px", border: "none", background: "transparent",
-    fontSize: "13px", fontWeight: "700", color: "#64748B", cursor: "pointer", transition: "all 0.2s",
+    padding: "8px 18px",
+    borderRadius: "99px",
+    border: "none",
+    background: "transparent",
+    fontSize: "13px",
+    fontWeight: "700",
+    color: "#64748B",
+    cursor: "pointer",
+    transition: "all 0.2s",
     whiteSpace: "nowrap",
   },
   pillNavItemActive: {
-    backgroundColor: "#141619", color: "#FFFFFF", boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+    backgroundColor: "#141619",
+    color: "#FFFFFF",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
   },
   topRightActions: { display: "flex", alignItems: "center", gap: "12px" },
   datePill: {
-    padding: "8px 14px", borderRadius: "99px", border: "1px solid #E2E8F0",
-    fontSize: "12px", fontWeight: "700", backgroundColor: "#FFF", cursor: "pointer",
+    padding: "8px 14px",
+    borderRadius: "99px",
+    border: "1px solid #E2E8F0",
+    fontSize: "12px",
+    fontWeight: "700",
+    backgroundColor: "#FFF",
+    cursor: "pointer",
   },
   profilePill: {
-    display: "flex", alignItems: "center", gap: "10px", padding: "5px 14px 5px 6px",
-    borderRadius: "99px", backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0",
-    cursor: "pointer", userSelect: "none", transition: "all 0.2s",
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "5px 14px 5px 6px",
+    borderRadius: "99px",
+    backgroundColor: "#F8FAFC",
+    border: "1px solid #E2E8F0",
+    cursor: "pointer",
+    userSelect: "none",
+    transition: "all 0.2s",
   },
   profileAvatar: {
-    width: "32px", height: "32px", borderRadius: "50%", backgroundColor: "#141619",
-    color: "#FFF", display: "flex", alignItems: "center", justifyContent: "center",
-    fontSize: "13px", fontWeight: "800",
+    width: "32px",
+    height: "32px",
+    borderRadius: "50%",
+    backgroundColor: "#141619",
+    color: "#FFF",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "13px",
+    fontWeight: "800",
   },
   userDropdown: {
-    position: "absolute", top: "48px", right: 0, width: "260px", backgroundColor: "#FFFFFF",
-    borderRadius: "16px", boxShadow: "0 12px 32px rgba(0,0,0,0.12)", border: "1px solid #E2E8F0",
-    padding: "8px", zIndex: 1000,
+    position: "absolute",
+    top: "48px",
+    right: 0,
+    width: "260px",
+    backgroundColor: "#FFFFFF",
+    borderRadius: "16px",
+    boxShadow: "0 12px 32px rgba(0,0,0,0.12)",
+    border: "1px solid #E2E8F0",
+    padding: "8px",
+    zIndex: 1000,
   },
   dropdownHeader: {
-    fontSize: "11px", fontWeight: "700", color: "#94A3B8", padding: "6px 10px",
-    textTransform: "uppercase", borderBottom: "1px solid #F1F5F9", marginBottom: "4px",
+    fontSize: "11px",
+    fontWeight: "700",
+    color: "#94A3B8",
+    padding: "6px 10px",
+    textTransform: "uppercase",
+    borderBottom: "1px solid #F1F5F9",
+    marginBottom: "4px",
   },
   dropdownItem: {
-    display: "flex", justifyContent: "space-between", alignItems: "center",
-    padding: "10px", borderRadius: "10px", cursor: "pointer",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "10px",
+    borderRadius: "10px",
+    cursor: "pointer",
   },
 
   scrollContent: { flex: 1, overflowY: "auto", padding: "24px 32px" },
   greetingHeader: {
-    display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "22px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "22px",
   },
-  greetingTitle: { fontSize: "26px", fontWeight: "800", margin: 0, letterSpacing: "-0.5px" },
+  greetingTitle: {
+    fontSize: "26px",
+    fontWeight: "800",
+    margin: 0,
+    letterSpacing: "-0.5px",
+  },
   greetingSub: { fontSize: "13px", color: "#64748B", margin: "4px 0 0 0" },
 
   bentoTopGrid: {
-    display: "grid", gridTemplateColumns: "1.25fr 1fr 1.15fr", gap: "18px", marginBottom: "18px",
+    display: "grid",
+    gridTemplateColumns: "1.25fr 1fr 1.15fr",
+    gap: "18px",
+    marginBottom: "18px",
   },
   balanceCard: {
-    backgroundColor: "#FFFFFF", borderRadius: "24px", padding: "22px",
-    boxShadow: "0 4px 20px rgba(0,0,0,0.02)", border: "1px solid #F1F5F9",
-    display: "flex", flexDirection: "column", justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    borderRadius: "24px",
+    padding: "22px",
+    boxShadow: "0 4px 20px rgba(0,0,0,0.02)",
+    border: "1px solid #F1F5F9",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
   },
-  cardHeaderRow: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+  cardHeaderRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   mutedLabel: { fontSize: "12px", fontWeight: "600", color: "#64748B" },
-  hugeBalance: { fontSize: "30px", fontWeight: "800", margin: "6px 0 14px 0", letterSpacing: "-0.8px" },
+  hugeBalance: {
+    fontSize: "30px",
+    fontWeight: "800",
+    margin: "6px 0 14px 0",
+    letterSpacing: "-0.8px",
+  },
   currencyBadge: {
-    padding: "6px 12px", borderRadius: "99px", backgroundColor: "#F8FAFC",
-    border: "1px solid #E2E8F0", fontSize: "11px", fontWeight: "700",
+    padding: "6px 12px",
+    borderRadius: "99px",
+    backgroundColor: "#F8FAFC",
+    border: "1px solid #E2E8F0",
+    fontSize: "11px",
+    fontWeight: "700",
   },
   actionPillRow: { display: "flex", gap: "10px" },
   actionBtnDark: {
-    flex: 1, padding: "11px", borderRadius: "99px", border: "none",
-    backgroundColor: "#141619", color: "#FFF", fontWeight: "700", fontSize: "12px", cursor: "pointer",
+    flex: 1,
+    padding: "11px",
+    borderRadius: "99px",
+    border: "none",
+    backgroundColor: "#141619",
+    color: "#FFF",
+    fontWeight: "700",
+    fontSize: "12px",
+    cursor: "pointer",
   },
   actionBtnLight: {
-    flex: 1, padding: "11px", borderRadius: "99px", border: "1px solid #E2E8F0",
-    backgroundColor: "#F8FAFC", color: "#141619", fontWeight: "700", fontSize: "12px", cursor: "pointer",
+    flex: 1,
+    padding: "11px",
+    borderRadius: "99px",
+    border: "1px solid #E2E8F0",
+    backgroundColor: "#F8FAFC",
+    color: "#141619",
+    fontWeight: "700",
+    fontSize: "12px",
+    cursor: "pointer",
   },
-  miniWalletsGrid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" },
+  miniWalletsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: "10px",
+  },
   miniWalletBox: {
-    backgroundColor: "#F8FAFC", padding: "10px", borderRadius: "14px", border: "1px solid #F1F5F9",
+    backgroundColor: "#F8FAFC",
+    padding: "10px",
+    borderRadius: "14px",
+    border: "1px solid #F1F5F9",
   },
 
-  fourCardsGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" },
+  fourCardsGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "14px",
+  },
   orangeHeroCard: {
-    background: "linear-gradient(135deg, #FF5B37 0%, #FF784E 100%)", color: "#FFFFFF",
-    borderRadius: "22px", padding: "18px", display: "flex", flexDirection: "column",
-    justifyContent: "space-between", boxShadow: "0 10px 24px rgba(255, 91, 55, 0.25)",
+    background: "linear-gradient(135deg, #FF5B37 0%, #FF784E 100%)",
+    color: "#FFFFFF",
+    borderRadius: "22px",
+    padding: "18px",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    boxShadow: "0 10px 24px rgba(255, 91, 55, 0.25)",
   },
   orangeCardIcon: {
-    width: "28px", height: "28px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.2)",
-    display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px",
+    width: "28px",
+    height: "28px",
+    borderRadius: "50%",
+    backgroundColor: "rgba(255,255,255,0.2)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "13px",
   },
-  orangeCardValue: { fontSize: "22px", fontWeight: "800", margin: "12px 0 0 0" },
+  orangeCardValue: {
+    fontSize: "22px",
+    fontWeight: "800",
+    margin: "12px 0 0 0",
+  },
   smallStatCard: {
-    backgroundColor: "#FFFFFF", borderRadius: "22px", padding: "18px",
-    border: "1px solid #F1F5F9", display: "flex", flexDirection: "column", justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    borderRadius: "22px",
+    padding: "18px",
+    border: "1px solid #F1F5F9",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
   },
   grayCardIcon: {
-    width: "28px", height: "28px", borderRadius: "50%", backgroundColor: "#F8FAFC",
-    display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px",
+    width: "28px",
+    height: "28px",
+    borderRadius: "50%",
+    backgroundColor: "#F8FAFC",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "13px",
   },
-  smallStatValue: { fontSize: "20px", fontWeight: "800", margin: "12px 0 0 0", color: "#141619" },
+  smallStatValue: {
+    fontSize: "20px",
+    fontWeight: "800",
+    margin: "12px 0 0 0",
+    color: "#141619",
+  },
 
   chartCard: {
-    backgroundColor: "#FFFFFF", borderRadius: "24px", padding: "22px",
-    border: "1px solid #F1F5F9", display: "flex", flexDirection: "column", justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    borderRadius: "24px",
+    padding: "22px",
+    border: "1px solid #F1F5F9",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
   },
   dualChartArea: {
-    display: "flex", alignItems: "flex-end", justifyContent: "space-between",
-    height: "190px", paddingTop: "20px", gap: "8px",
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    height: "190px",
+    paddingTop: "20px",
+    gap: "8px",
   },
   dualBarGroup: {
-    flex: 1, height: "100%", display: "flex", flexDirection: "column", alignItems: "center",
+    flex: 1,
+    height: "100%",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
   },
   dualBarTrack: {
-    flex: 1, width: "100%", display: "flex", alignItems: "flex-end",
-    justifyContent: "center", gap: "4px",
+    flex: 1,
+    width: "100%",
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "center",
+    gap: "4px",
   },
   barOrange: {
-    width: "12px", backgroundColor: "#FF6B4A", borderRadius: "6px 6px 3px 3px", transition: "height 0.4s ease",
+    width: "12px",
+    backgroundColor: "#FF6B4A",
+    borderRadius: "6px 6px 3px 3px",
+    transition: "height 0.4s ease",
   },
   barDark: {
-    width: "12px", backgroundColor: "#141619", borderRadius: "6px 6px 3px 3px", transition: "height 0.4s ease",
+    width: "12px",
+    backgroundColor: "#141619",
+    borderRadius: "6px 6px 3px 3px",
+    transition: "height 0.4s ease",
   },
-  dualBarLabel: { fontSize: "10px", fontWeight: "700", color: "#94A3B8", marginTop: "8px" },
+  dualBarLabel: {
+    fontSize: "10px",
+    fontWeight: "700",
+    color: "#94A3B8",
+    marginTop: "8px",
+  },
 
-  bentoBottomGrid: { display: "grid", gridTemplateColumns: "1fr 2.4fr", gap: "18px" },
+  bentoBottomGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 2.4fr",
+    gap: "18px",
+  },
   limitCard: {
-    backgroundColor: "#FFFFFF", borderRadius: "24px", padding: "22px", border: "1px solid #F1F5F9",
+    backgroundColor: "#FFFFFF",
+    borderRadius: "24px",
+    padding: "22px",
+    border: "1px solid #F1F5F9",
     height: "max-content",
   },
   progressTrack: {
-    width: "100%", height: "10px", backgroundColor: "#F1F5F9", borderRadius: "99px", overflow: "hidden",
+    width: "100%",
+    height: "10px",
+    backgroundColor: "#F1F5F9",
+    borderRadius: "99px",
+    overflow: "hidden",
   },
-  progressFill: { height: "100%", backgroundColor: "#FF5B37", borderRadius: "99px" },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#FF5B37",
+    borderRadius: "99px",
+  },
 
   recentTableCard: {
-    backgroundColor: "#FFFFFF", borderRadius: "24px", padding: "22px", border: "1px solid #F1F5F9",
+    backgroundColor: "#FFFFFF",
+    borderRadius: "24px",
+    padding: "22px",
+    border: "1px solid #F1F5F9",
   },
   miniSearch: {
-    padding: "8px 14px", borderRadius: "99px", border: "1px solid #E2E8F0",
-    fontSize: "12px", backgroundColor: "#F8FAFC", width: "210px",
+    padding: "8px 14px",
+    borderRadius: "99px",
+    border: "1px solid #E2E8F0",
+    fontSize: "12px",
+    backgroundColor: "#F8FAFC",
+    width: "210px",
   },
   darkPillBtn: {
-    padding: "9px 18px", borderRadius: "99px", border: "none",
-    backgroundColor: "#141619", color: "#FFF", fontWeight: "700", fontSize: "12px",
-    cursor: "pointer", whiteSpace: "nowrap",
+    padding: "9px 18px",
+    borderRadius: "99px",
+    border: "none",
+    backgroundColor: "#141619",
+    color: "#FFF",
+    fontWeight: "700",
+    fontSize: "12px",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
   },
   lightPillBtn: {
-    padding: "8px 14px", borderRadius: "99px", border: "1px solid #E2E8F0",
-    backgroundColor: "#FFFFFF", color: "#141619", fontWeight: "700", fontSize: "12px",
-    cursor: "pointer", whiteSpace: "nowrap",
+    padding: "8px 14px",
+    borderRadius: "99px",
+    border: "1px solid #E2E8F0",
+    backgroundColor: "#FFFFFF",
+    color: "#141619",
+    fontWeight: "700",
+    fontSize: "12px",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
   },
   filterChip: {
-    padding: "7px 14px", borderRadius: "99px", border: "1px solid #E2E8F0",
-    backgroundColor: "#FFF", fontSize: "12px", fontWeight: "700", color: "#64748B",
-    cursor: "pointer", whiteSpace: "nowrap",
+    padding: "7px 14px",
+    borderRadius: "99px",
+    border: "1px solid #E2E8F0",
+    backgroundColor: "#FFF",
+    fontSize: "12px",
+    fontWeight: "700",
+    color: "#64748B",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
   },
-  filterChipActive: { backgroundColor: "#FF5B37", color: "#FFF", borderColor: "#FF5B37" },
+  filterChipActive: {
+    backgroundColor: "#FF5B37",
+    color: "#FFF",
+    borderColor: "#FF5B37",
+  },
 
   // TABLE V14 & NHÃN TRẠNG THÁI KHO MỚI (KHÔNG BAO GIỜ RỚT DÒNG)
   v14Table: { width: "100%", borderCollapse: "collapse", textAlign: "left" },
   v14Th: {
-    padding: "12px 14px", fontSize: "11px", fontWeight: "800", color: "#94A3B8",
-    textTransform: "uppercase", borderBottom: "1px solid #F1F5F9", whiteSpace: "nowrap",
+    padding: "12px 14px",
+    fontSize: "11px",
+    fontWeight: "800",
+    color: "#94A3B8",
+    textTransform: "uppercase",
+    borderBottom: "1px solid #F1F5F9",
+    whiteSpace: "nowrap",
     letterSpacing: "0.3px",
   },
   v14Tr: { borderBottom: "1px solid #F8FAFC" },
   v14Td: { padding: "14px", fontSize: "13px", verticalAlign: "middle" },
   statusPill: {
-    display: "inline-flex", alignItems: "center", gap: "6px",
-    padding: "5px 12px", borderRadius: "99px", fontSize: "12px", fontWeight: "700",
-    whiteSpace: "nowrap", lineHeight: 1.2,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "5px 12px",
+    borderRadius: "99px",
+    fontSize: "12px",
+    fontWeight: "700",
+    whiteSpace: "nowrap",
+    lineHeight: 1.2,
   },
   statusDot: {
-    width: "6px", height: "6px", borderRadius: "50%", display: "inline-block",
+    width: "6px",
+    height: "6px",
+    borderRadius: "50%",
+    display: "inline-block",
   },
   agentTag: {
-    display: "inline-block", backgroundColor: "#FEF3C7", color: "#B45309",
-    padding: "3px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: "700",
+    display: "inline-block",
+    backgroundColor: "#FEF3C7",
+    color: "#B45309",
+    padding: "3px 8px",
+    borderRadius: "6px",
+    fontSize: "11px",
+    fontWeight: "700",
     whiteSpace: "nowrap",
   },
   retailTag: {
-    display: "inline-block", backgroundColor: "#E0F2FE", color: "#0369A1",
-    padding: "3px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: "700",
+    display: "inline-block",
+    backgroundColor: "#E0F2FE",
+    color: "#0369A1",
+    padding: "3px 8px",
+    borderRadius: "6px",
+    fontSize: "11px",
+    fontWeight: "700",
     whiteSpace: "nowrap",
   },
   noteBox: {
-    marginTop: "6px", fontSize: "11px", color: "#BE123C", backgroundColor: "#FFF1F2",
-    padding: "3px 8px", borderRadius: "6px", display: "inline-block",
+    marginTop: "6px",
+    fontSize: "11px",
+    color: "#BE123C",
+    backgroundColor: "#FFF1F2",
+    padding: "3px 8px",
+    borderRadius: "6px",
+    display: "inline-block",
   },
   completeMiniBtn: {
-    display: "inline-flex", alignItems: "center", justifyContent: "center",
-    padding: "7px 14px", borderRadius: "99px", border: "none",
-    backgroundColor: "#10B981", color: "#FFF", fontWeight: "700", fontSize: "12px",
-    cursor: "pointer", whiteSpace: "nowrap", boxShadow: "0 2px 6px rgba(16, 185, 129, 0.25)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "7px 14px",
+    borderRadius: "99px",
+    border: "none",
+    backgroundColor: "#10B981",
+    color: "#FFF",
+    fontWeight: "700",
+    fontSize: "12px",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    boxShadow: "0 2px 6px rgba(16, 185, 129, 0.25)",
   },
 
   formRow: { display: "flex", gap: "16px", marginBottom: "16px" },
   formGroup: { flex: 1, display: "flex", flexDirection: "column" },
-  label: { fontSize: "12px", fontWeight: "700", color: "#475569", marginBottom: "6px" },
+  label: {
+    fontSize: "12px",
+    fontWeight: "700",
+    color: "#475569",
+    marginBottom: "6px",
+  },
   input: {
-    padding: "11px 14px", borderRadius: "12px", border: "1px solid #E2E8F0",
-    fontSize: "13px", backgroundColor: "#F8FAFC",
+    padding: "11px 14px",
+    borderRadius: "12px",
+    border: "1px solid #E2E8F0",
+    fontSize: "13px",
+    backgroundColor: "#F8FAFC",
   },
 };
