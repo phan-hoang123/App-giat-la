@@ -1525,7 +1525,7 @@ export default function AdminDashboard() {
                             )
                           }
                         >
-                          <option value="">
+                           <option value="">
                             --- Chọn bảng giá dịch vụ ---
                           </option>
                           {priceList.map((p) => (
