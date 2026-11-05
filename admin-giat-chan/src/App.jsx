@@ -70,6 +70,7 @@ export default function AdminDashboard() {
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [expenseSearch, setExpenseSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [toastMsg, setToastMsg] = useState("");
 
@@ -161,11 +162,13 @@ export default function AdminDashboard() {
       .then((data) => {
         if (!Array.isArray(data)) return;
         const formatted = data.map((t) => ({
+          db_id: t.id,
           id: t.trans_code,
           type: t.type,
           amount: Number(t.amount) || 0,
           desc: t.description,
           date: formatDate(t.created_at),
+          rawCreatedAt: t.created_at,
         }));
         setTransactions(formatted);
       })
@@ -296,7 +299,7 @@ export default function AdminDashboard() {
       amount: parseInt(amount.toString().replace(/\D/g, "")) || 0,
       description: desc,
     };
-    fetch(`${API_BASE}/api/transactions`, {
+    return fetch(`${API_BASE}/api/transactions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -314,7 +317,7 @@ export default function AdminDashboard() {
       return showToast("⚠️ Vui lòng nhập đủ số tiền và lý do chi!");
     handleAddTransaction("OUT", newExpense.amount, newExpense.desc);
     setNewExpense({ amount: "", desc: "" });
-    showToast("💸 Đã ghi nhận khoản chi vào sổ quỹ!");
+    showToast("💸 Đã ghi nhận khoản chi vào lịch sử chi tiêu!");
   };
 
   const handleCreateStaff = (e) => {
@@ -376,16 +379,43 @@ export default function AdminDashboard() {
     );
   };
 
-  const handleRestockInventory = (id) => {
+  // Khi bấm +5 Nhập: vừa cộng kho vật tư, vừa tự động tạo phiếu chi trừ tiền vào Quỹ
+  const handleRestockInventory = (item) => {
     if (!isAdmin)
       return showToast("🔒 Chỉ Quản lý (ADMIN) mới được nhập thêm vật tư!");
-    fetch(`${API_BASE}/api/inventory/${id}/restock`, {
+
+    const defaultCost = item.name.toLowerCase().includes("omo")
+      ? "750000"
+      : item.name.toLowerCase().includes("comfort")
+        ? "450000"
+        : "150000";
+
+    const costInput = window.prompt(
+      `Nhập tổng số tiền chi để mua thêm +5 ${item.unit || "đơn vị"} "${item.name}" (VNĐ):`,
+      defaultCost,
+    );
+    if (costInput === null) return; // Người dùng bấm Hủy
+
+    const costAmount = parseInt(costInput.toString().replace(/\D/g, "")) || 0;
+
+    fetch(`${API_BASE}/api/inventory/${item.id}/restock`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ added_amount: 5 }),
     }).then(() => {
-      showToast("📦 Đã nhập thêm +5 đơn vị vào kho vật tư!");
-      loadData();
+      if (costAmount > 0) {
+        handleAddTransaction(
+          "OUT",
+          costAmount,
+          `Nhập kho +5 ${item.unit || ""} ${item.name}`.trim(),
+        );
+        showToast(
+          `📦 Đã nhập +5 ${item.name} & trừ ${formatMoney(costAmount)} vào sổ chi!`,
+        );
+      } else {
+        showToast(`📦 Đã nhập thêm +5 đơn vị ${item.name} vào kho!`);
+        loadData();
+      }
     });
   };
 
@@ -409,6 +439,20 @@ export default function AdminDashboard() {
     (acc, t) => (t.type === "IN" ? acc + t.amount : acc - t.amount),
     0,
   );
+
+  // Danh sách lịch sử chi tiêu (chỉ lọc các giao dịch OUT)
+  const expenseTransactions = transactions
+    .filter((t) => t.type === "OUT")
+    .filter(
+      (t) =>
+        (t.desc || "").toLowerCase().includes(expenseSearch.toLowerCase()) ||
+        (t.id || "").toLowerCase().includes(expenseSearch.toLowerCase()) ||
+        (t.date || "").includes(expenseSearch),
+    );
+
+  const totalExpenseAllTime = transactions
+    .filter((t) => t.type === "OUT")
+    .reduce((sum, t) => sum + t.amount, 0);
 
   const pendingOrders = orders.filter((o) => o.status !== "COMPLETED").length;
   const completedOrders = orders.filter((o) => o.status === "COMPLETED").length;
@@ -556,6 +600,16 @@ export default function AdminDashboard() {
             <button
               style={{
                 ...styles.railBtn,
+                ...(activeTab === "EXPENSE" ? styles.railBtnActive : {}),
+              }}
+              onClick={() => setActiveTab("EXPENSE")}
+              title="Chi tiêu & Vật tư"
+            >
+              💸
+            </button>
+            <button
+              style={{
+                ...styles.railBtn,
                 ...(activeTab === "STAFF" ? styles.railBtnActive : {}),
               }}
               onClick={() => setActiveTab("STAFF")}
@@ -590,6 +644,7 @@ export default function AdminDashboard() {
                 { id: "DASHBOARD", label: "Overview" },
                 { id: "WAREHOUSE", label: "Kho & Đơn Hàng" },
                 { id: "CREATE", label: "Quầy Tiếp Nhận" },
+                { id: "EXPENSE", label: "Chi Tiêu & Vật Tư" },
                 { id: "STAFF", label: "Nhân Sự & Phân Quyền" },
               ].map((tab) => (
                 <button
@@ -726,6 +781,12 @@ export default function AdminDashboard() {
                 </button>
                 <button
                   style={styles.lightPillBtn}
+                  onClick={() => setActiveTab("EXPENSE")}
+                >
+                  💸 Sổ Chi & Vật Tư ({expenseTransactions.length})
+                </button>
+                <button
+                  style={styles.lightPillBtn}
                   onClick={() => setActiveTab("STAFF")}
                 >
                   👥 Quản Lý Nhân Viên ({staffList.length})
@@ -761,9 +822,9 @@ export default function AdminDashboard() {
                       </button>
                       <button
                         style={styles.actionBtnLight}
-                        onClick={() => setActiveTab("WAREHOUSE")}
+                        onClick={() => setActiveTab("EXPENSE")}
                       >
-                        📦 Xem kho chăn
+                        💸 Ghi sổ chi
                       </button>
                     </div>
 
@@ -1428,7 +1489,7 @@ export default function AdminDashboard() {
             )}
 
             {/* ==========================================
-                TAB 3: QUẦY TIẾP NHẬN ĐƠN & GHI SỔ CHI
+                TAB 3: QUẦY TIẾP NHẬN ĐƠN KHÁCH HÀNG (CHỈ NHẬN ĐƠN)
                ========================================== */}
             {activeTab === "CREATE" && (
               <div style={styles.bentoBottomGrid}>
@@ -1525,7 +1586,7 @@ export default function AdminDashboard() {
                             )
                           }
                         >
-                           <option value="">
+                          <option value="">
                             --- Chọn bảng giá dịch vụ ---
                           </option>
                           {priceList.map((p) => (
@@ -1597,6 +1658,67 @@ export default function AdminDashboard() {
                   </form>
                 </div>
 
+                {/* CỘT PHẢI Ở QUẦY TIẾP NHẬN: BẢNG GIÁ DỊCH VỤ NIÊM YẾT ĐỂ NHÂN VIÊN TRA CỨU NHANH */}
+                <div style={styles.limitCard}>
+                  <h3
+                    style={{
+                      marginTop: 0,
+                      marginBottom: "8px",
+                      fontSize: "16px",
+                      fontWeight: "800",
+                      color: "#141619",
+                    }}
+                  >
+                    🏷️ Bảng Giá Dịch Vụ Niêm Yết
+                  </h3>
+                  <p
+                    style={{
+                      fontSize: "12px",
+                      color: "#64748B",
+                      marginBottom: "14px",
+                    }}
+                  >
+                    Chọn nhanh dịch vụ bên dưới để điền tự động vào phiếu tiếp nhận đơn.
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {priceList.map((p) => (
+                      <div
+                        key={p.id || p.name}
+                        onClick={() => handleProductOrQtyChange("serviceName", p.name)}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "10px 14px",
+                          backgroundColor:
+                            newOrder.serviceName === p.name ? "#FFF7ED" : "#F8FAFC",
+                          borderRadius: "12px",
+                          border:
+                            newOrder.serviceName === p.name
+                              ? "1px solid #FF5B37"
+                              : "1px solid #F1F5F9",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span style={{ fontSize: "13px", fontWeight: "700", color: "#141619" }}>
+                          {p.name}
+                        </span>
+                        <span style={{ fontSize: "13px", fontWeight: "800", color: "#FF5B37" }}>
+                          {formatMoney(p.price)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ==========================================
+                TAB 4 (MỚI): CHI TIÊU, KHO VẬT TƯ & LỊCH SỬ CHI TIỀN RIÊNG BIỆT
+               ========================================== */}
+            {activeTab === "EXPENSE" && (
+              <div style={styles.bentoBottomGrid}>
+                {/* CỘT TRÁI: FORM GHI PHIẾU CHI + KHO VẬT TƯ TIÊU HAO */}
                 <div style={styles.limitCard}>
                   <h3
                     style={{
@@ -1630,7 +1752,7 @@ export default function AdminDashboard() {
                       <input
                         type="text"
                         style={styles.input}
-                        placeholder="VD: Mua nước giặt, túi bóng..."
+                        placeholder="VD: Mua nước giặt, tiền điện, túi bóng..."
                         value={newExpense.desc}
                         onChange={(e) =>
                           setNewExpense({ ...newExpense, desc: e.target.value })
@@ -1660,7 +1782,7 @@ export default function AdminDashboard() {
                     <h3
                       style={{
                         marginTop: 0,
-                        marginBottom: "12px",
+                        marginBottom: "6px",
                         fontSize: "15px",
                         fontWeight: "800",
                         color: "#141619",
@@ -1668,6 +1790,16 @@ export default function AdminDashboard() {
                     >
                       🧴 Kho Vật Tư Tiêu Hao (MySQL)
                     </h3>
+                    <p
+                      style={{
+                        fontSize: "11px",
+                        color: "#64748B",
+                        marginTop: 0,
+                        marginBottom: "12px",
+                      }}
+                    >
+                      Khi ấn <strong>+5 Nhập</strong>, hệ thống sẽ tự động ghi phiếu chi và trừ tiền vào Quỹ.
+                    </p>
                     {inventory.map((item) => (
                       <div
                         key={item.id}
@@ -1719,7 +1851,7 @@ export default function AdminDashboard() {
                               ...styles.darkPillBtn,
                               padding: "5px 10px",
                             }}
-                            onClick={() => handleRestockInventory(item.id)}
+                            onClick={() => handleRestockInventory(item)}
                           >
                             +5 Nhập
                           </button>
@@ -1728,11 +1860,142 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                 </div>
+
+                {/* CỘT PHẢI: BẢNG LỊCH SỬ CHI TIỀN (SỔ CHI VẬN HÀNH) */}
+                <div style={styles.recentTableCard}>
+                  <div
+                    style={{
+                      ...styles.cardHeaderRow,
+                      marginBottom: "16px",
+                      flexWrap: "wrap",
+                      gap: "12px",
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: "17px", fontWeight: "800" }}>
+                        📋 Lịch Sử Chi Tiền & Nhập Vật Tư
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#64748B", marginTop: "2px" }}>
+                        Tổng chi hôm nay ({todayFormattedDate}):{" "}
+                        <strong style={{ color: "#E11D48" }}>
+                          {formatMoney(totalOutToday)}
+                        </strong>{" "}
+                        • Tổng chi lũy kế:{" "}
+                        <strong style={{ color: "#141619" }}>
+                          {formatMoney(totalExpenseAllTime)}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <input
+                      type="text"
+                      placeholder="🔍 Tìm mã phiếu chi, lý do, ngày..."
+                      style={{ ...styles.miniSearch, width: "250px" }}
+                      value={expenseSearch}
+                      onChange={(e) => setExpenseSearch(e.target.value)}
+                    />
+                  </div>
+
+                  <table style={styles.v14Table}>
+                    <thead>
+                      <tr>
+                        <th style={{ ...styles.v14Th, width: "130px" }}>Mã Phiếu Chi</th>
+                        <th style={{ ...styles.v14Th, width: "130px" }}>Ngày Chi</th>
+                        <th style={styles.v14Th}>Nội Dung Chi Tiêu / Nhập Kho</th>
+                        <th style={{ ...styles.v14Th, width: "140px", textAlign: "center" }}>
+                          Loại Giao Dịch
+                        </th>
+                        <th style={{ ...styles.v14Th, width: "150px", textAlign: "right" }}>
+                          Số Tiền Trừ Quỹ
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {expenseTransactions.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan="5"
+                            style={{
+                              textAlign: "center",
+                              padding: "48px",
+                              color: "#94A3B8",
+                            }}
+                          >
+                            Chưa có lịch sử phiếu chi nào khớp tìm kiếm.
+                          </td>
+                        </tr>
+                      )}
+                      {expenseTransactions.map((tx, idx) => (
+                        <tr key={tx.id || idx} style={styles.v14Tr}>
+                          <td
+                            style={{
+                              ...styles.v14Td,
+                              fontWeight: "800",
+                              color: "#141619",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            #{tx.id}
+                          </td>
+                          <td
+                            style={{
+                              ...styles.v14Td,
+                              color: "#64748B",
+                              fontWeight: "600",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {tx.date}
+                          </td>
+                          <td
+                            style={{
+                              ...styles.v14Td,
+                              fontWeight: "700",
+                              color: "#1E293B",
+                            }}
+                          >
+                            {tx.desc || "Chi phí vận hành tiệm giặt"}
+                          </td>
+                          <td style={{ ...styles.v14Td, textAlign: "center", whiteSpace: "nowrap" }}>
+                            <span
+                              style={{
+                                ...styles.statusPill,
+                                backgroundColor: "#FFF1F2",
+                                color: "#E11D48",
+                                border: "1px solid #FECDD3",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  ...styles.statusDot,
+                                  backgroundColor: "#E11D48",
+                                }}
+                              />
+                              Phiếu Chi (OUT)
+                            </span>
+                          </td>
+                          <td
+                            style={{
+                              ...styles.v14Td,
+                              fontWeight: "800",
+                              color: "#E11D48",
+                              textAlign: "right",
+                              whiteSpace: "nowrap",
+                              fontSize: "14px",
+                            }}
+                          >
+                            -{formatMoney(tx.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 
             {/* ==========================================
-                TAB 4: QUẢN LÝ NHÂN VIÊN & PHÂN QUYỀN APP
+                TAB 5: QUẢN LÝ NHÂN VIÊN & PHÂN QUYỀN APP
                ========================================== */}
             {activeTab === "STAFF" && (
               <div style={styles.bentoBottomGrid}>
