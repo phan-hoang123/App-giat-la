@@ -62,6 +62,7 @@ export default function AdminDashboard() {
   const [priceList, setPriceList] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [inventory, setInventory] = useState([]);
+  const [savedAddresses, setSavedAddresses] = useState([]);
 
   // Tài khoản đang đăng nhập trên Web (Đồng bộ trực tiếp với bảng users trong MySQL)
   const [selectedUserPhone, setSelectedUserPhone] = useState(() => {
@@ -200,6 +201,13 @@ export default function AdminDashboard() {
         if (Array.isArray(data)) setInventory(data);
       })
       .catch(() => {});
+
+    fetch(`${API_BASE}/api/addresses`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setSavedAddresses(data);
+      })
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -222,6 +230,33 @@ export default function AdminDashboard() {
     setNewOrder(updated);
   };
 
+  // Tự động tra cứu Sổ địa chỉ (saved_addresses) khi nhập SĐT khách hàng
+  const handlePhoneChange = (phoneVal) => {
+    setNewOrder((prev) => ({ ...prev, phone: phoneVal }));
+    const cleanPhone = phoneVal.replace(/\D/g, "");
+
+    if (cleanPhone.length >= 9) {
+      fetch(`${API_BASE}/api/addresses?phone=${encodeURIComponent(cleanPhone)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data) && data.length > 0) {
+            const latestAddr =
+              data[data.length - 1].address_text ||
+              data[data.length - 1].address ||
+              "";
+            if (latestAddr) {
+              setNewOrder((prev) => ({
+                ...prev,
+                address: prev.address || latestAddr,
+              }));
+              showToast(`📍 Đã tự động điền địa chỉ khách quen: ${latestAddr}`);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  };
+
   const handleCreateOrder = (e) => {
     e.preventDefault();
     if (!newOrder.name) return showToast("⚠️ Vui lòng nhập Tên khách hàng!");
@@ -233,11 +268,14 @@ export default function AdminDashboard() {
     const notePart = newOrder.note ? ` - Ghi chú: ${newOrder.note}` : "";
     const itemsFormatted = `${typePrefix}${newOrder.qty} ${newOrder.serviceName}${notePart}`;
 
+    const cleanPhone = newOrder.phone.replace(/\D/g, "");
+    const cleanAddress = newOrder.address.trim();
+
     const payload = {
       order_code: generateCode("DH"),
-      customer_name: newOrder.name,
-      customer_phone: newOrder.phone.replace(/\D/g, ""),
-      address: newOrder.address,
+      customer_name: newOrder.name.trim(),
+      customer_phone: cleanPhone,
+      address: cleanAddress,
       items: itemsFormatted,
       total_amount: parseInt(newOrder.total) || 0,
     };
@@ -249,7 +287,21 @@ export default function AdminDashboard() {
     })
       .then((res) => {
         if (!res.ok) throw new Error();
-        showToast("✅ Đã tiếp nhận đơn hàng thành công!");
+
+        // Tự động lưu địa chỉ thật của khách vào bảng saved_addresses trong MySQL
+        if (cleanAddress) {
+          fetch(`${API_BASE}/api/addresses`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              phone: cleanPhone || newOrder.name.trim().slice(0, 20),
+              address_text: cleanAddress,
+              address: cleanAddress,
+            }),
+          }).catch(() => {});
+        }
+
+        showToast("✅ Đã tiếp nhận đơn & lưu địa chỉ khách hàng!");
         loadData();
         setNewOrder({
           name: "",
@@ -465,17 +517,30 @@ export default function AdminDashboard() {
       customerMap.set(key, {
         name: o.name,
         phone: o.phone,
+        address: o.address,
         isAgent: parsed.isAgent,
         spent: o.rawTotal,
       });
     } else {
       customerMap.get(key).spent += o.rawTotal;
+      if (o.address && !customerMap.get(key).address) {
+        customerMap.get(key).address = o.address;
+      }
       if (parsed.isAgent) customerMap.get(key).isAgent = true;
     }
   });
   const topCustomers = Array.from(customerMap.values())
     .sort((a, b) => b.spent - a.spent)
     .slice(0, 3);
+
+  // Danh sách địa chỉ khách hàng thật để hiển thị & chọn nhanh ở Quầy Tiếp Nhận
+  const realCustomerAddresses =
+    savedAddresses.length > 0
+      ? savedAddresses.map((a) => ({
+          phone: a.phone,
+          address: a.address_text || a.address,
+        }))
+      : Array.from(customerMap.values()).filter((c) => c.address);
 
   const last7Days = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date();
@@ -1489,7 +1554,7 @@ export default function AdminDashboard() {
             )}
 
             {/* ==========================================
-                TAB 3: QUẦY TIẾP NHẬN ĐƠN KHÁCH HÀNG (CHỈ NHẬN ĐƠN)
+                TAB 3: QUẦY TIẾP NHẬN ĐƠN KHÁCH HÀNG (TỰ ĐỘNG LƯU & GỢI Ý SỔ ĐỊA CHỈ)
                ========================================== */}
             {activeTab === "CREATE" && (
               <div style={styles.bentoBottomGrid}>
@@ -1522,15 +1587,15 @@ export default function AdminDashboard() {
                         />
                       </div>
                       <div style={styles.formGroup}>
-                        <label style={styles.label}>Số Điện Thoại</label>
+                        <label style={styles.label}>
+                          Số Điện Thoại (Tự động tìm địa chỉ cũ)
+                        </label>
                         <input
                           type="text"
                           style={styles.input}
                           placeholder="VD: 0912345678"
                           value={newOrder.phone}
-                          onChange={(e) =>
-                            setNewOrder({ ...newOrder, phone: e.target.value })
-                          }
+                          onChange={(e) => handlePhoneChange(e.target.value)}
                         />
                       </div>
                     </div>
@@ -1555,7 +1620,9 @@ export default function AdminDashboard() {
                         </select>
                       </div>
                       <div style={styles.formGroup}>
-                        <label style={styles.label}>Địa Chỉ Khách Hàng</label>
+                        <label style={styles.label}>
+                          Địa Chỉ Khách Hàng (Tự lưu vào Sổ địa chỉ)
+                        </label>
                         <input
                           type="text"
                           style={styles.input}
@@ -1653,12 +1720,12 @@ export default function AdminDashboard() {
                         padding: "14px",
                       }}
                     >
-                      LƯU ĐƠN HÀNG VÀO KHO
+                      LƯU ĐƠN HÀNG & ĐỊA CHỈ VÀO KHO
                     </button>
                   </form>
                 </div>
 
-                {/* CỘT PHẢI Ở QUẦY TIẾP NHẬN: BẢNG GIÁ DỊCH VỤ NIÊM YẾT ĐỂ NHÂN VIÊN TRA CỨU NHANH */}
+                {/* CỘT PHẢI Ở QUẦY TIẾP NHẬN: BẢNG GIÁ & SỔ ĐỊA CHỈ KHÁCH QUEN */}
                 <div style={styles.limitCard}>
                   <h3
                     style={{
@@ -1709,12 +1776,84 @@ export default function AdminDashboard() {
                       </div>
                     ))}
                   </div>
+
+                  {/* KHUNG SỔ ĐỊA CHỈ KHÁCH HÀNG THẬT */}
+                  <div
+                    style={{
+                      marginTop: "22px",
+                      paddingTop: "16px",
+                      borderTop: "1px solid #F1F5F9",
+                    }}
+                  >
+                    <h3
+                      style={{
+                        marginTop: 0,
+                        marginBottom: "6px",
+                        fontSize: "15px",
+                        fontWeight: "800",
+                        color: "#141619",
+                      }}
+                    >
+                      📍 Sổ Địa Chỉ Khách Hàng ({realCustomerAddresses.length})
+                    </h3>
+                    <p
+                      style={{
+                        fontSize: "11px",
+                        color: "#64748B",
+                        marginTop: 0,
+                        marginBottom: "10px",
+                      }}
+                    >
+                      Bấm vào khách quen bên dưới để điền nhanh SĐT & Địa chỉ vào đơn.
+                    </p>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "6px",
+                        maxHeight: "180px",
+                        overflowY: "auto",
+                      }}
+                    >
+                      {realCustomerAddresses.slice(0, 10).map((item, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() =>
+                            setNewOrder((prev) => ({
+                              ...prev,
+                              name: prev.name || item.name || "",
+                              phone: item.phone || prev.phone,
+                              address: item.address || "",
+                            }))
+                          }
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            padding: "8px 12px",
+                            backgroundColor: "#F8FAFC",
+                            borderRadius: "10px",
+                            border: "1px solid #F1F5F9",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                          }}
+                        >
+                          <span style={{ fontWeight: "700", color: "#141619" }}>
+                            {item.name ? `${item.name} (${item.phone || "---"})` : item.phone}
+                          </span>
+                          <span style={{ color: "#059669", fontWeight: "600" }}>
+                            {item.address}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
 
             {/* ==========================================
-                TAB 4 (MỚI): CHI TIÊU, KHO VẬT TƯ & LỊCH SỬ CHI TIỀN RIÊNG BIỆT
+                TAB 4: CHI TIÊU, KHO VẬT TƯ & LỊCH SỬ CHI TIỀN RIÊNG BIỆT
                ========================================== */}
             {activeTab === "EXPENSE" && (
               <div style={styles.bentoBottomGrid}>
